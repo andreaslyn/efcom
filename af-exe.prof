@@ -1,0 +1,69 @@
+	Sun Jul 25 20:16 2021 Time and Allocation Profiling Report  (Final)
+
+	   af-exe +RTS -N -p -M2G -H2G -RTS
+
+	total time  =        0.08 secs   (278 ticks @ 1000 us, 8 processors)
+	total alloc = 312,182,016 bytes  (excludes profiling overheads)
+
+COST CENTRE MODULE    SRC                            %time %alloc
+
+testLoop    Main      app/Main.hs:(343,1)-(368,32)    50.7   69.2
+testLoop.\  Main      app/Main.hs:(351,19)-(367,63)   38.8   25.6
+pure        Main      app/Main.hs:178:3-39             8.3    5.1
+MAIN        MAIN      <built-in>                       2.2    0.0
+
+
+                                                                                        individual      inherited
+COST CENTRE      MODULE                SRC                           no.     entries  %time %alloc   %time %alloc
+
+MAIN             MAIN                  <built-in>                    208           0    2.2    0.0   100.0  100.0
+ CAF             Data.Either           <entire-module>               345           0    0.0    0.0     0.0    0.0
+ CAF             GHC.Conc.Signal       <entire-module>               326           0    0.0    0.0     0.0    0.0
+ CAF             GHC.IO.Encoding       <entire-module>               311           0    0.0    0.0     0.0    0.0
+ CAF             GHC.IO.Encoding.Iconv <entire-module>               309           0    0.0    0.0     0.0    0.0
+ CAF             GHC.IO.Handle.FD      <entire-module>               301           0    0.0    0.0     0.0    0.0
+ CAF             GHC.IO.Handle.Text    <entire-module>               299           0    0.0    0.0     0.0    0.0
+ CAF             GHC.Show              <entire-module>               281           0    0.0    0.0     0.0    0.0
+ CAF             GHC.Event.Thread      <entire-module>               256           0    0.0    0.0     0.0    0.0
+ CAF             GHC.Event.Poll        <entire-module>               226           0    0.0    0.0     0.0    0.0
+ CAF:$dHas1_ramH Main                  <no location info>            394           0    0.0    0.0     0.0    0.0
+  hasIndex       Main                  app/Main.hs:210:3-32          422           1    0.0    0.0     0.0    0.0
+ CAF:$dHas2_ramI Main                  <no location info>            395           0    0.0    0.0     0.0    0.0
+  hasIndex       Main                  app/Main.hs:210:3-32          421           1    0.0    0.0     0.0    0.0
+ CAF:$dHas_ramG  Main                  <no location info>            393           0    0.0    0.0     0.0    0.0
+  hasIndex       Main                  app/Main.hs:205:3-14          423           1    0.0    0.0     0.0    0.0
+ CAF:f_ranQ      Main                  app/Main.hs:300:11            408           0    0.0    0.0     0.0    0.0
+  testLoop       Main                  app/Main.hs:(343,1)-(368,32)  435           0    0.0    0.0     0.0    0.0
+   return        Main                  app/Main.hs:186:3-15          436           1    0.0    0.0     0.0    0.0
+ CAF:lvl13_ranP  Main                  <no location info>            407           0    0.0    0.0     0.0    0.0
+  testLoop       Main                  app/Main.hs:(343,1)-(368,32)  427           0    0.0    0.0     0.0    0.0
+   >>=           Main                  app/Main.hs:(189,3)-(193,30)  428           1    0.0    0.0     0.0    0.0
+ CAF:main        Main                  app/Main.hs:389:1-4           411           0    0.0    0.0     0.0    0.0
+  main           Main                  app/Main.hs:(389,1)-(391,214) 416           1    0.0    0.0     0.0    0.0
+ CAF:main1       Main                  <no location info>            410           0    0.0    0.0    97.8   99.9
+  main           Main                  app/Main.hs:(389,1)-(391,214) 418           0    0.0    0.0    97.8   99.9
+   testLoop      Main                  app/Main.hs:(343,1)-(368,32)  420     1000001   50.7   69.2    97.8   99.9
+    unAf         Main                  app/Main.hs:163:8-11          424     2000000    0.0    0.0     0.0    0.0
+    pure         Main                  app/Main.hs:178:3-39          437     1000000    8.3    5.1     8.3    5.1
+     pure.\      Main                  app/Main.hs:178:24-39         438     1000000    0.0    0.0     0.0    0.0
+    testLoop.\   Main                  app/Main.hs:(351,19)-(367,63) 425     1000000   38.8   25.6    38.8   25.6
+     unAf        Main                  app/Main.hs:163:8-11          426     2000000    0.0    0.0     0.0    0.0
+    >>=          Main                  app/Main.hs:(189,3)-(193,30)  429           1    0.0    0.0     0.0    0.0
+     >>=.\       Main                  app/Main.hs:(189,26)-(193,30) 430           2    0.0    0.0     0.0    0.0
+      unAf       Main                  app/Main.hs:163:8-11          431           4    0.0    0.0     0.0    0.0
+      pure       Main                  app/Main.hs:178:3-39          433           1    0.0    0.0     0.0    0.0
+       pure.\    Main                  app/Main.hs:178:24-39         434           1    0.0    0.0     0.0    0.0
+      return     Main                  app/Main.hs:186:3-15          432           1    0.0    0.0     0.0    0.0
+   unAf          Main                  app/Main.hs:163:8-11          419           7    0.0    0.0     0.0    0.0
+   main.\        Main                  app/Main.hs:391:166-178       443           1    0.0    0.0     0.0    0.0
+    pure         Main                  app/Main.hs:178:3-39          445           1    0.0    0.0     0.0    0.0
+     pure.\      Main                  app/Main.hs:178:24-39         446           1    0.0    0.0     0.0    0.0
+    return       Main                  app/Main.hs:186:3-15          444           1    0.0    0.0     0.0    0.0
+   main.\        Main                  app/Main.hs:391:115-142       439           1    0.0    0.0     0.0    0.0
+    pure         Main                  app/Main.hs:178:3-39          441           1    0.0    0.0     0.0    0.0
+     pure.\      Main                  app/Main.hs:178:24-39         442           1    0.0    0.0     0.0    0.0
+    return       Main                  app/Main.hs:186:3-15          440           1    0.0    0.0     0.0    0.0
+   pure          Main                  app/Main.hs:178:3-39          448           1    0.0    0.0     0.0    0.0
+    pure.\       Main                  app/Main.hs:178:24-39         449           1    0.0    0.0     0.0    0.0
+   return        Main                  app/Main.hs:186:3-15          447           1    0.0    0.0     0.0    0.0
+ main            Main                  app/Main.hs:(389,1)-(391,214) 417           0    0.0    0.0     0.0    0.0
