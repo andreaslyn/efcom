@@ -11,13 +11,13 @@ import qualified GHC.Exts as GHC
 
 import Unsafe.Coerce (unsafeCoerce)
 
---import qualified Control.Monad.Except as T
+import qualified Control.Monad.Except as T
 import qualified Control.Monad.State.Strict as T
 import Control.Monad.Trans.Class (lift)
 
 
-runInt# :: Int -> Int#
-runInt# (GHC.I# i) = i
+runI# :: Int -> Int#
+runI# (GHC.I# i) = i
 
 
 type AfArray (s :: *) = GHC.MutableArray# s Any
@@ -84,15 +84,16 @@ initialAfArray :: forall s. State# s -> (# State# s, AfArray s #)
 initialAfArray s = newAfArray 1# s -- TODO update this at some point
 
 
-{-# INLINE flipAfIndex #-}
-flipAfIndex :: Int# -> Int# -> Int#
-flipAfIndex i sz = sz GHC.-# i GHC.-# 1#
-
-
 {-# INLINE writeAfArray #-}
 writeAfArray ::
   forall a s. AfArray s -> Int# -> a -> State# s -> State# s
 writeAfArray ar i a s = GHC.writeArray# ar i (unsafeCoerce a) s
+
+
+{-# INLINE writeStrictAfArray #-}
+writeStrictAfArray ::
+  forall a s. AfArray s -> Int# -> a -> State# s -> State# s
+writeStrictAfArray ar i !a s = GHC.writeArray# ar i (unsafeCoerce a) s
 
 
 {-# INLINE readAfArray #-}
@@ -130,27 +131,40 @@ appendAfArray sz ar a s = do
 
 
 class Has (e :: Ef) (es :: [Ef]) where
-  hasIndex :: Int
+  afExDepth :: Int
+  afIndex :: Int# -> Int#
 
 
 instance Has ('StEf st e) ('StEf st e : es) where
-  {-# INLINE hasIndex #-}
-  hasIndex = 0
+  {-# INLINE afExDepth #-}
+  afExDepth = error "afExDepth of StEf is undefined"
+
+  {-# INLINE afIndex #-}
+  afIndex sz = sz GHC.-# 1#
 
 
 instance Has ('ExEf ex e) ('ExEf ex e : es) where
-  {-# INLINE hasIndex #-}
-  hasIndex = 0
+  {-# INLINE afExDepth #-}
+  afExDepth = 0
+
+  {-# INLINE afIndex #-}
+  afIndex _ = error "afIndex of ExEf is undefined"
 
 
 instance {-# OVERLAPPABLE #-} Has e es => Has e ('StEf st d : es) where
-  {-# INLINE hasIndex #-}
-  hasIndex = 1 + hasIndex @e @es
+  {-# INLINE afExDepth #-}
+  afExDepth = afExDepth @e @es
+
+  {-# INLINE afIndex #-}
+  afIndex sz = afIndex @e @es sz GHC.-# 1#
 
 
 instance {-# OVERLAPPABLE #-} Has e es => Has e ('ExEf ex d : es) where
-  {-# INLINE hasIndex #-}
-  hasIndex = 1 + hasIndex @e @es
+  {-# INLINE afExDepth #-}
+  afExDepth = 1 + afExDepth @e @es
+
+  {-# INLINE afIndex #-}
+  afIndex sz = afIndex @e @es sz
 
 
 {-# INLINE evalAf #-}
@@ -163,7 +177,7 @@ evalAf af =
     rw s0 =
       case initialAfArray s0 of
         (# s1, ar #) ->
-          case runAf af 0# ar s1 of
+          case runAf af 1# ar s1 of
             (# _, s2, (# _ | #) #) -> (# s2, error "TODO" #)
             (# _, s2, (# | a #) #) -> (# s2, a #)
 
@@ -197,16 +211,61 @@ localSt = undefined
 {-# INLINE putSt #-}
 putSt :: forall e st es. Has ('StEf st e) es => st -> Af es ()
 putSt st = Af $ \ sz ar s ->
-  let i = flipAfIndex (runInt# (hasIndex @('StEf st e) @es)) sz
+  let i = afIndex @('StEf st e) @es sz
   in (# ar, writeAfArray ar i st s, (# | () #) #)
 
 
 {-# INLINE getSt #-}
 getSt :: forall e st es. Has ('StEf st e) es => Af es st
 getSt = Af $ \ sz ar s ->
-  let i = flipAfIndex (runInt# (hasIndex @('StEf st e) @es)) sz
+  let i = afIndex @('StEf st e) @es sz
   in case readAfArray ar i s of
       (# s', a #) -> (# ar, s', (# | a #) #)
+
+
+------------------------------- Exception ----------------------------
+
+
+{-# INLINE runEx #-}
+runEx ::
+  forall e ex a b es.
+  Af ('ExEf ex e : es) a -> (a -> Af es b) -> (ex -> Af es b) -> Af es b
+runEx af f g = Af $ \ sz ar0 s0 ->
+  case runAf af sz ar0 s0 of
+    (# ar1, s1, (# e | #) #) ->
+      case readAfArray @Int ar1 0# s1 of
+        (# s2, i #) ->
+          if i == 0
+          then
+            runAf (g (unsafeCoerce e)) sz ar1 s2
+          else
+            let s3 = writeStrictAfArray ar1 0# (i - 1) s2
+            in (# ar1, s3, (# e | #) #)
+    (# ar1, s1, (# | a #) #) ->
+      runAf (f a) sz ar1 s1
+
+
+{-# INLINE throwEx #-}
+throwEx :: forall e ex a es. Has ('ExEf ex e) es => ex -> Af es a
+throwEx ex = Af $ \ _ ar s ->
+  let s' = writeStrictAfArray @Int ar 0# (afExDepth @('ExEf ex e) @es) s
+  in (# ar, s', (# unsafeCoerce ex | #) #)
+
+
+{-# INLINE catchEx #-}
+catchEx ::
+  forall e ex a es b. Has ('ExEf ex e) es =>
+  Af es a -> (a -> Af es b) -> (ex -> Af es b) -> Af es b
+catchEx af f g = Af $ \ sz ar0 s0 ->
+  case runAf af sz ar0 s0 of
+    (# ar1, s1, (# e | #) #) ->
+      case readAfArray @Int ar1 0# s1 of
+        (# s2, i #) ->
+          if i == afExDepth @('ExEf ex e) @es
+          then runAf (g (unsafeCoerce e)) sz ar1 s2
+          else (# ar1, s2, (# e | #) #)
+    (# ar1, s1, (# | a #) #) ->
+      runAf (f a) sz ar1 s1 
 
 
 ------------------------------- Test --------------------------------
@@ -221,35 +280,34 @@ data TestExc1 :: *
 testLoop ::
   Has ('StEf Bool TestState2) es =>
   Has ('StEf Int TestState1) es =>
-  -- Has ('ExEf String TestExc1) es =>
+  Has ('ExEf String TestExc1) es =>
   Int -> Af es Int
 testLoop 0 = do
   !x <- getSt @TestState1
   !y <- getSt @TestState2
   if x < 0
-  then return $ if y then x + 1 else x -- throwEx @TestExc1 "fail!"
+  then throwEx @TestExc1 "fail!"
   else return $ if y then x + 1 else x
 testLoop i = do
-  --catchEx @TestExc1 @String (do
+  catchEx @TestExc1 @String (do
       !x <- getSt @TestState1 @Int
       !y <- getSt @TestState2 @Bool
       putSt @TestState1 (x + 1)
       putSt @TestState2 (not y)
       testLoop (i - 1)
-    --) return (throwEx @TestExc1)
+    ) return (throwEx @TestExc1)
 
 
 {-# NOINLINE testLoopT #-}
 testLoopT ::
-  Int -> T.StateT Bool (T.State Int) Int
+  Int -> T.StateT Bool (T.StateT Int (T.Except String)) Int
 testLoopT 0 = do
   !x <- lift T.get
   !y <- T.get
   if x < 0
-  then return $ if y then x + 1 else x -- T.throwError "fail!"
+  then T.throwError "fail!"
   else return $ if y then x + 1 else x
-testLoopT i = do
-  -- flip T.catchError T.throwError $ do
+testLoopT i = flip T.catchError T.throwError $ do
   !x <- lift T.get
   !y <- T.get
   lift $ T.put (x + 1)
@@ -259,10 +317,12 @@ testLoopT i = do
 
 main :: IO ()
 main = do
-  print (evalAf $
-    (runSt @TestState1
-      (runSt @TestState2
-        (testLoop 1000000)
-      False (\i s -> return (i :: Int, s :: Bool)))
-    (0 :: Int) (\i s -> return (i, s))))
-  --print (T.runState (T.runStateT (testLoopT 1000000) False) 0)
+  print $ evalAf $
+    (runEx @TestExc1 @String
+      (runSt @TestState1
+        (runSt @TestState2
+          (testLoop 1000000)
+        False (\i s -> return (i :: Int, s :: Bool)))
+      (0 :: Int) (\i s -> return (i, s))))
+    (return . Right) (return . Left)
+  --print (T.runExceptT (T.runStateT (T.runStateT (testLoopT 1000000) False) 0))
