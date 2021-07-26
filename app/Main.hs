@@ -81,7 +81,7 @@ capacityAfArray = GHC.sizeofMutableArray#
 
 {-# INLINE initialAfArray #-}
 initialAfArray :: forall s. State# s -> (# State# s, AfArray s #)
-initialAfArray s = newAfArray 1# s
+initialAfArray s = newAfArray 1# s -- TODO update this at some point
 
 
 {-# INLINE flipAfIndex #-}
@@ -259,12 +259,10 @@ testLoopT i = do
 
 main :: IO ()
 main = do
-{-
   print (evalAf $
     (runSt @TestState1
       (runSt @TestState2
         (testLoop 1000000)
       False (\i s -> return (i :: Int, s :: Bool)))
     (0 :: Int) (\i s -> return (i, s))))
--}
-  print (T.runState (T.runStateT (testLoopT 1000000) False) 0)
+  --print (T.runState (T.runStateT (testLoopT 1000000) False) 0)
