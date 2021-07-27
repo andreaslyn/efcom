@@ -20,7 +20,7 @@ runI# :: Int -> Int#
 runI# (GHC.I# i) = i
 
 
-type AfArray (s :: *) = GHC.MutableArray# s Any
+type AfArray (s :: *) = GHC.SmallMutableArray# s Any
 
 
 data Ef = StEf * * | ExEf * *
@@ -71,12 +71,12 @@ undefinedAfElement = error "undefined AfArray element"
 
 {-# INLINE newAfArray #-}
 newAfArray :: forall s. Int# -> State# s -> (# State# s, AfArray s #)
-newAfArray n s = GHC.newArray# n undefinedAfElement s
+newAfArray n s = GHC.newSmallArray# n undefinedAfElement s
 
 
 {-# INLINE capacityAfArray #-}
 capacityAfArray :: forall s. AfArray s -> Int#
-capacityAfArray = GHC.sizeofMutableArray#
+capacityAfArray = GHC.sizeofSmallMutableArray#
 
 
 {-# INLINE initialAfArray #-}
@@ -87,20 +87,20 @@ initialAfArray s = newAfArray 1# s -- TODO update this at some point
 {-# INLINE writeAfArray #-}
 writeAfArray ::
   forall a s. AfArray s -> Int# -> a -> State# s -> State# s
-writeAfArray ar i a s = GHC.writeArray# ar i (unsafeCoerce a) s
+writeAfArray ar i a s = GHC.writeSmallArray# ar i (unsafeCoerce a) s
 
 
 {-# INLINE writeStrictAfArray #-}
 writeStrictAfArray ::
   forall a s. AfArray s -> Int# -> a -> State# s -> State# s
-writeStrictAfArray ar i !a s = GHC.writeArray# ar i (unsafeCoerce a) s
+writeStrictAfArray ar i !a s = GHC.writeSmallArray# ar i (unsafeCoerce a) s
 
 
 {-# INLINE readAfArray #-}
 readAfArray ::
   forall a s. AfArray s -> Int# -> State# s -> (# State# s, a #)
 readAfArray ar i s =
-  case GHC.readArray# ar i s of
+  case GHC.readSmallArray# ar i s of
     (# s', a #) -> (# s', unsafeCoerce a #)
 
 
@@ -111,7 +111,7 @@ doubleAfArray ar s =
   let cap = capacityAfArray ar
   in case newAfArray (cap GHC.*# 2#) s of
       (# s1, ar' #) ->
-        let s2 = GHC.copyMutableArray# ar 0# ar' 0# cap s1
+        let s2 = GHC.copySmallMutableArray# ar 0# ar' 0# cap s1
         in (# s2, ar' #)
 
 
@@ -148,7 +148,7 @@ instance Has ('ExEf ex e) ('ExEf ex e : es) where
   afExDepth = 0
 
   {-# INLINE afIndex #-}
-  afIndex _ = error "afIndex of ExEf is undefined"
+  afIndex sz = sz
 
 
 instance {-# OVERLAPPABLE #-} Has e es => Has e ('StEf st d : es) where
@@ -257,15 +257,22 @@ catchEx ::
   forall e ex a es b. Has ('ExEf ex e) es =>
   Af es a -> (a -> Af es b) -> (ex -> Af es b) -> Af es b
 catchEx af f g = Af $ \ sz ar0 s0 ->
-  case runAf af sz ar0 s0 of
-    (# ar1, s1, (# e | #) #) ->
-      case readAfArray @Int ar1 0# s1 of
-        (# s2, i #) ->
-          if i == afExDepth @('ExEf ex e) @es
-          then runAf (g (unsafeCoerce e)) sz ar1 s2
-          else (# ar1, s2, (# e | #) #)
-    (# ar1, s1, (# | a #) #) ->
-      runAf (f a) sz ar1 s1 
+  let ix = afIndex @('ExEf ex e) @es sz
+  in
+  case GHC.cloneSmallMutableArray# ar0 ix (sz GHC.-# ix) s0 of
+    (# s0', car #) ->
+      case runAf af sz ar0 s0' of
+        (# ar1, s1, (# e | #) #) ->
+          case readAfArray @Int ar1 0# s1 of
+            (# s2, i #) ->
+              if i == afExDepth @('ExEf ex e) @es
+              then
+                let s2' = GHC.copySmallMutableArray# car 0# ar1 ix (sz GHC.-# ix) s2
+                in runAf (g (unsafeCoerce e)) sz ar1 s2'
+              else
+                (# ar1, s2, (# e | #) #)
+        (# ar1, s1, (# | a #) #) ->
+          runAf (f a) sz ar1 s1 
 
 
 ------------------------------- Test --------------------------------
