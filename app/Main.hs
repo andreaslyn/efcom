@@ -1,5 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
+{-# LANGUAGE TypeFamilies #-} -- For es ~ '[ ... ]
+
 module Main where
 
 import GHC.Exts
@@ -11,6 +13,7 @@ import qualified GHC.Exts as GHC
 
 import Unsafe.Coerce (unsafeCoerce)
 
+import qualified Control.Monad.Writer as T
 import qualified Control.Monad.Except as T
 import qualified Control.Monad.State.Strict as T
 import Control.Monad.Trans.Class (lift)
@@ -381,9 +384,16 @@ data TestExc1 :: *
 
 {-# NOINLINE catchClause #-}
 catchClause ::
+  es ~
+    '[ 'StEf Bool TestState2
+     , 'StEf Int TestState1
+     , 'ExEf String TestExc1
+     ] =>
+{-
   Has ('StEf Bool TestState2) es =>
   Has ('StEf Int TestState1) es =>
   Has ('ExEf String TestExc1) es =>
+-}
   String -> Af es Int
 catchClause _ = do
   !x <- getSt @TestState1
@@ -393,14 +403,21 @@ catchClause _ = do
 
 {-# NOINLINE testLoop #-}
 testLoop ::
+  es ~
+    '[ 'StEf Bool TestState2
+     , 'StEf Int TestState1
+     , 'ExEf String TestExc1
+     ] =>
+{-
   Has ('StEf Bool TestState2) es =>
   Has ('StEf Int TestState1) es =>
   Has ('ExEf String TestExc1) es =>
+-}
   Int -> Af es Int
 testLoop 0 = do
   !x <- getSt @TestState1
   !y <- getSt @TestState2
-  if x >= 0
+  if x < 0
   then throwEx @TestExc1 "fail!"
   else return $ if y then x + 1 else x
 testLoop i = do
@@ -427,7 +444,7 @@ testLoopT ::
 testLoopT 0 = do
   !x <- lift T.get
   !y <- T.get
-  if x >= 0
+  if x < 0
   then T.throwError "fail!"
   else return $ if y then x + 1 else x
 testLoopT i = flip T.catchError catchClauseT $ do
@@ -438,8 +455,16 @@ testLoopT i = flip T.catchError catchClauseT $ do
   testLoopT (i - 1)
 
 
+globalWriterListen :: T.ExceptT String (T.Writer String) String
+globalWriterListen = do
+  ((), w) <- T.listen (T.tell "hello" >> T.throwError "fail")
+  return w
+
+
 main :: IO ()
 main = do
+  print $ T.runWriter (T.runExceptT globalWriterListen)
+{-
   print $ evalAf $
     (runEx @TestExc1 @String
       (runSt @TestState1
@@ -448,6 +473,7 @@ main = do
         False (\i s -> return (i, s)))
       (0 :: Int) (\i s -> return (i, s))))
     (return . Right) (return . Left)
+-}
 {-
   print $ evalAf $
     (runEx @TestExc1 @String
