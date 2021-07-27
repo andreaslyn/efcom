@@ -20,7 +20,7 @@ runI# :: Int -> Int#
 runI# (GHC.I# i) = i
 
 
-type AfArray (s :: *) = GHC.SmallMutableArray# s Any
+type AfArray (s :: *) = GHC.MutableArray# s Any
 
 
 data Ef = StEf * * | ExEf * *
@@ -71,12 +71,12 @@ undefinedAfElement = error "undefined AfArray element"
 
 {-# INLINE newAfArray #-}
 newAfArray :: forall s. Int# -> State# s -> (# State# s, AfArray s #)
-newAfArray n s = GHC.newSmallArray# n undefinedAfElement s
+newAfArray n s = GHC.newArray# n undefinedAfElement s
 
 
 {-# INLINE capacityAfArray #-}
 capacityAfArray :: forall s. AfArray s -> Int#
-capacityAfArray = GHC.sizeofSmallMutableArray#
+capacityAfArray = GHC.sizeofMutableArray#
 
 
 {-# INLINE initialAfArray #-}
@@ -87,20 +87,20 @@ initialAfArray s = newAfArray 1# s -- TODO update this at some point
 {-# INLINE writeAfArray #-}
 writeAfArray ::
   forall a s. AfArray s -> Int# -> a -> State# s -> State# s
-writeAfArray ar i a s = GHC.writeSmallArray# ar i (unsafeCoerce a) s
+writeAfArray ar i a s = GHC.writeArray# ar i (unsafeCoerce a) s
 
 
 {-# INLINE writeStrictAfArray #-}
 writeStrictAfArray ::
   forall a s. AfArray s -> Int# -> a -> State# s -> State# s
-writeStrictAfArray ar i !a s = GHC.writeSmallArray# ar i (unsafeCoerce a) s
+writeStrictAfArray ar i !a s = GHC.writeArray# ar i (unsafeCoerce a) s
 
 
 {-# INLINE readAfArray #-}
 readAfArray ::
   forall a s. AfArray s -> Int# -> State# s -> (# State# s, a #)
 readAfArray ar i s =
-  case GHC.readSmallArray# ar i s of
+  case GHC.readArray# ar i s of
     (# s', a #) -> (# s', unsafeCoerce a #)
 
 
@@ -111,7 +111,7 @@ doubleAfArray ar s =
   let cap = capacityAfArray ar
   in case newAfArray (cap GHC.*# 2#) s of
       (# s1, ar' #) ->
-        let s2 = GHC.copySmallMutableArray# ar 0# ar' 0# cap s1
+        let s2 = GHC.copyMutableArray# ar 0# ar' 0# cap s1
         in (# s2, ar' #)
 
 
@@ -252,27 +252,57 @@ throwEx ex = Af $ \ _ ar s ->
   in (# ar, s', (# unsafeCoerce ex | #) #)
 
 
+{-# INLINE copyFrom #-}
+copyFrom :: AfArray s -> Int# -> Int# -> State# s -> (# State# s, [Any] #)
+copyFrom from start cap s0 =
+  case start GHC.<# cap of
+    1# ->
+      case readAfArray from start s0 of
+        (# s1, x #) ->
+          case copyFrom from (start GHC.+# 1#) cap s1 of
+            (# s2, xs #) -> (# s2, x : xs #)
+    _ ->
+      (# s0, [] #)
+
+
+{-# INLINE readFormIndexUp #-}
+readFormIndexUp :: forall s. AfArray s -> Int# -> State# s -> (# State# s, [Any] #)
+readFormIndexUp ar i = copyFrom ar i (capacityAfArray ar)
+
+
+{-# INLINE copyTo #-}
+copyTo :: AfArray s -> Int# -> [Any] -> State# s -> State# s
+copyTo _ _ [] s = s
+copyTo dest i (x : xs) s0 =
+  let s1 = writeAfArray dest i x s0
+  in copyTo dest (i GHC.+# 1#) xs s1
+
+
+{-# INLINE writeFromIndexUp #-}
+writeFromIndexUp :: forall s. AfArray s -> [Any] -> Int# -> State# s -> State# s
+writeFromIndexUp dest src i = copyTo dest i src
+
+
 {-# INLINE catchEx #-}
 catchEx ::
   forall e ex a es b. Has ('ExEf ex e) es =>
   Af es a -> (a -> Af es b) -> (ex -> Af es b) -> Af es b
 catchEx af f g = Af $ \ sz ar0 s0 ->
-  let ix = afIndex @('ExEf ex e) @es sz
-  in
-  case GHC.cloneSmallMutableArray# ar0 ix (sz GHC.-# ix) s0 of
-    (# s0', car #) ->
-      case runAf af sz ar0 s0' of
-        (# ar1, s1, (# e | #) #) ->
-          case readAfArray @Int ar1 0# s1 of
-            (# s2, i #) ->
+  let ix = afIndex @('ExEf ex e) @es sz in
+  case readFormIndexUp ar0 ix s0 of
+    (# s1, backup #) ->
+      case runAf af sz ar0 s1 of
+        (# ar1, s2, (# e | #) #) ->
+          case readAfArray @Int ar1 0# s2 of
+            (# s3, i #) ->
               if i == afExDepth @('ExEf ex e) @es
               then
-                let s2' = GHC.copySmallMutableArray# car 0# ar1 ix (sz GHC.-# ix) s2
-                in runAf (g (unsafeCoerce e)) sz ar1 s2'
+                let s4 = writeFromIndexUp ar1 backup ix s3
+                in runAf (g (unsafeCoerce e)) sz ar1 s4
               else
-                (# ar1, s2, (# e | #) #)
-        (# ar1, s1, (# | a #) #) ->
-          runAf (f a) sz ar1 s1 
+                (# ar1, s3, (# e | #) #)
+        (# ar1, s2, (# | a #) #) ->
+          runAf (f a) sz ar1 s2
 
 
 ------------------------------- Test --------------------------------
