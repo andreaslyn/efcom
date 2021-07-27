@@ -202,10 +202,25 @@ runSt af st k = Af $ \ sz ar0 s0 ->
               in runAf (k a st') sz ar2 s4
 
 
+{-# INLINE localSt #-}
 localSt ::
+  forall e st es a b.
   Has ('StEf st e) es =>
   Af es a -> st -> (a -> st -> Af es b) -> Af es b
-localSt = undefined
+localSt af st k = Af $ \ sz ar s0 ->
+  let ix = afIndex @('StEf st e) @es sz in
+  case readAfArray ar ix s0 of
+    (# s1, orig #) ->
+      let s2 = writeAfArray ar ix st s1 in
+      case runAf af sz ar s2 of
+        (# ar', s3, (# e | #) #) ->
+          let s4 = writeAfArray ar' ix orig s3
+          in (# ar', s4, (# e | #) #)
+        (# ar', s3, (# | a #) #) ->
+          case readAfArray ar' ix s3 of
+            (# s4, st' #) ->
+              let s5 = writeAfArray ar' ix orig s4
+              in runAf (k a st') sz ar' s5
 
 
 {-# INLINE putSt #-}
@@ -252,35 +267,86 @@ throwEx ex = Af $ \ _ ar s ->
   in (# ar, s', (# unsafeCoerce ex | #) #)
 
 
-{-# INLINE copyFrom #-}
-copyFrom :: AfArray s -> Int# -> Int# -> State# s -> (# State# s, [Any] #)
+
+data BufList a =
+  NilBuf | OneBuf a | TwoBuf a a | ConsBuf a a a (BufList a)
+
+
+{-# INLINE copyFrom3 #-}
+copyFrom3 ::
+  forall s.
+  Any -> Any -> Any -> AfArray s -> Int# -> Int# ->
+  State# s -> (# State# s, BufList Any #)
+copyFrom3 x1 x2 x3 from start cap s0 =
+  case copyFrom from start cap s0 of
+    (# s1, xs #) -> (# s1, ConsBuf x1 x2 x3 xs #)
+
+
+{-# INLINE copyFrom2 #-}
+copyFrom2 ::
+  forall s.
+  Any -> Any -> AfArray s -> Int# -> Int# ->
+  State# s -> (# State# s, BufList Any #)
+copyFrom2 x1 x2 from start cap s0 =
+  case start GHC.<# cap of
+    1# ->
+      case readAfArray from start s0 of
+        (# s1, x3 #) ->
+          copyFrom3 x1 x2 x3 from (start GHC.+# 1#) cap s1
+    _ -> (# s0, TwoBuf x1 x2 #)
+
+
+{-# INLINE copyFrom1 #-}
+copyFrom1 ::
+  forall s.
+  Any -> AfArray s -> Int# -> Int# ->
+  State# s -> (# State# s, BufList Any #)
+copyFrom1 x1 from start cap s0 =
+  case start GHC.<# cap of
+    1# ->
+      case readAfArray from start s0 of
+        (# s1, x2 #) ->
+          copyFrom2 x1 x2 from (start GHC.+# 1#) cap s1
+    _ -> (# s0, OneBuf x1 #)
+
+
+copyFrom ::
+  forall s.
+  AfArray s -> Int# -> Int# -> State# s -> (# State# s, BufList Any #)
 copyFrom from start cap s0 =
   case start GHC.<# cap of
     1# ->
       case readAfArray from start s0 of
-        (# s1, x #) ->
-          case copyFrom from (start GHC.+# 1#) cap s1 of
-            (# s2, xs #) -> (# s2, x : xs #)
-    _ ->
-      (# s0, [] #)
+        (# s1, x1 #) ->
+          copyFrom1 x1 from (start GHC.+# 1#) cap s1
+    _ -> (# s0, NilBuf #)
+
 
 
 {-# INLINE readFormIndexUp #-}
-readFormIndexUp :: forall s. AfArray s -> Int# -> State# s -> (# State# s, [Any] #)
-readFormIndexUp ar i = copyFrom ar i (capacityAfArray ar)
+readFormIndexUp ::
+  forall s.
+  AfArray s -> Int# -> Int# -> State# s -> (# State# s, BufList Any #)
+readFormIndexUp ar i sz s = copyFrom ar i sz s
 
 
-{-# INLINE copyTo #-}
-copyTo :: AfArray s -> Int# -> [Any] -> State# s -> State# s
-copyTo _ _ [] s = s
-copyTo dest i (x : xs) s0 =
-  let s1 = writeAfArray dest i x s0
-  in copyTo dest (i GHC.+# 1#) xs s1
+copyTo :: AfArray s -> Int# -> BufList Any -> State# s -> State# s
+copyTo _ _ NilBuf s = s
+copyTo dest i (OneBuf x1) s0 = writeAfArray dest i x1 s0
+copyTo dest i (TwoBuf x1 x2) s0 =
+  let s1 = writeAfArray dest i x1 s0
+  in writeAfArray dest (i GHC.+# 1#) x2 s1
+copyTo dest i (ConsBuf x1 x2 x3 xs) s0 =
+  let s1 = writeAfArray dest i x1 s0
+      s2 = writeAfArray dest (i GHC.+# 1#) x2 s1
+      s3 = writeAfArray dest (i GHC.+# 2#) x3 s2
+  in copyTo dest (i GHC.+# 3#) xs s3
 
 
 {-# INLINE writeFromIndexUp #-}
-writeFromIndexUp :: forall s. AfArray s -> [Any] -> Int# -> State# s -> State# s
-writeFromIndexUp dest src i = copyTo dest i src
+writeFromIndexUp ::
+  forall s. AfArray s -> BufList Any -> Int# -> State# s -> State# s
+writeFromIndexUp dest src i s = copyTo dest i src s
 
 
 {-# INLINE catchEx #-}
@@ -289,7 +355,7 @@ catchEx ::
   Af es a -> (a -> Af es b) -> (ex -> Af es b) -> Af es b
 catchEx af f g = Af $ \ sz ar0 s0 ->
   let ix = afIndex @('ExEf ex e) @es sz in
-  case readFormIndexUp ar0 ix s0 of
+  case readFormIndexUp ar0 ix sz s0 of
     (# s1, backup #) ->
       case runAf af sz ar0 s1 of
         (# ar1, s2, (# e | #) #) ->
@@ -313,6 +379,18 @@ data TestState2 :: *
 data TestExc1 :: *
 
 
+{-# NOINLINE catchClause #-}
+catchClause ::
+  Has ('StEf Bool TestState2) es =>
+  Has ('StEf Int TestState1) es =>
+  Has ('ExEf String TestExc1) es =>
+  String -> Af es Int
+catchClause _ = do
+  !x <- getSt @TestState1
+  !y <- getSt @TestState2
+  return $ if y then x + 1 else x
+
+
 {-# NOINLINE testLoop #-}
 testLoop ::
   Has ('StEf Bool TestState2) es =>
@@ -322,7 +400,7 @@ testLoop ::
 testLoop 0 = do
   !x <- getSt @TestState1
   !y <- getSt @TestState2
-  if x < 0
+  if x >= 0
   then throwEx @TestExc1 "fail!"
   else return $ if y then x + 1 else x
 testLoop i = do
@@ -332,7 +410,15 @@ testLoop i = do
       putSt @TestState1 (x + 1)
       putSt @TestState2 (not y)
       testLoop (i - 1)
-    ) return (throwEx @TestExc1)
+    ) return catchClause
+
+
+{-# NOINLINE catchClauseT #-}
+catchClauseT :: String -> T.StateT Bool (T.StateT Int (T.Except String)) Int
+catchClauseT _ = do
+  !x <- lift T.get
+  !y <- T.get
+  return $ if y then x + 1 else x
 
 
 {-# NOINLINE testLoopT #-}
@@ -341,10 +427,10 @@ testLoopT ::
 testLoopT 0 = do
   !x <- lift T.get
   !y <- T.get
-  if x < 0
+  if x >= 0
   then T.throwError "fail!"
   else return $ if y then x + 1 else x
-testLoopT i = flip T.catchError T.throwError $ do
+testLoopT i = flip T.catchError catchClauseT $ do
   !x <- lift T.get
   !y <- T.get
   lift $ T.put (x + 1)
@@ -359,7 +445,45 @@ main = do
       (runSt @TestState1
         (runSt @TestState2
           (testLoop 1000000)
-        False (\i s -> return (i :: Int, s :: Bool)))
+        False (\i s -> return (i, s)))
       (0 :: Int) (\i s -> return (i, s))))
     (return . Right) (return . Left)
+{-
+  print $ evalAf $
+    (runEx @TestExc1 @String
+      (runSt @TestState1
+        (runSt @TestState2
+          (runSt @TestState1
+            (runSt @TestState2
+              (runSt @TestState1
+                (runSt @TestState2
+                  (runSt @TestState1
+                    (runSt @TestState2
+                      (runSt @TestState1
+                        (runSt @TestState2
+                          (runSt @TestState1
+                            (runSt @TestState2
+                              (runSt @TestState1
+                                (runSt @TestState2
+                                  (runSt @TestState1
+                                    (runSt @TestState2
+                                      (testLoop 1000000)
+                                    False (\ i s -> return (i, s)))
+                                  (0 :: Int) (\ i s -> return (i, s)))
+                                False (\ i _ -> return i))
+                              (0 :: Int) (\ i _ -> return i))
+                            False (\ i _ -> return i))
+                          (0 :: Int) (\ i _ -> return i))
+                        False (\ i _ -> return i))
+                      (0 :: Int) (\ i _ -> return i))
+                    False (\ i _ -> return i))
+                  (0 :: Int) (\ i _ -> return i))
+                False (\ i _ -> return i))
+              (0 :: Int) (\ i _ -> return i))
+            False (\ i _ -> return i))
+          (0 :: Int) (\ i _ -> return i))
+        False (\i _ -> return i))
+      (0 :: Int) (\i _ -> return i)))
+    (return . Right) (return . Left)
+-}
   --print (T.runExceptT (T.runStateT (T.runStateT (testLoopT 1000000) False) 0))
