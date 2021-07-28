@@ -10,6 +10,8 @@ import GHC.Exts
   , Int#
   )
 import qualified GHC.Exts as GHC
+import qualified GHC.IO as GHC
+import GHC.ST (ST (..), runST)
 
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -19,19 +21,15 @@ import qualified Control.Monad.State.Strict as T
 import Control.Monad.Trans.Class (lift)
 
 
-runI# :: Int -> Int#
-runI# (GHC.I# i) = i
-
-
 type AfArray (s :: *) = GHC.MutableArray# s Any
 
 
-data Ef = StEf * * | ExEf * *
+data Ef = IOEf | STEf * | StateEf * * | ExEf * *
 
 
 newtype Af (es :: [Ef]) (a :: *) =
   Af
-  { runAf :: forall s.
+  { unAf :: forall s.
       Int# -> AfArray s ->
       State# s -> (# AfArray s, State# s, (# Any | a #) #)
   }
@@ -40,7 +38,7 @@ newtype Af (es :: [Ef]) (a :: *) =
 instance Functor (Af es) where
   {-# INLINE fmap #-}
   fmap f af = Af $ \sz ar s ->
-    case runAf af sz ar s of
+    case unAf af sz ar s of
       (# ar', s', (# e | #) #) -> (# ar', s', (# e | #) #)
       (# ar', s', (# | a #) #) -> (# ar', s', (# | f a #) #)
 
@@ -51,9 +49,9 @@ instance Applicative (Af es) where
 
   {-# INLINE (<*>) #-}
   ff <*> af = Af $ \ sz ar s ->
-    case runAf ff sz ar s of
+    case unAf ff sz ar s of
       (# ar1, s1, (# e | #) #) -> (# ar1, s1, (# e | #) #)
-      (# ar1, s1, (# | f #) #) -> runAf (fmap f af) sz ar1 s1
+      (# ar1, s1, (# | f #) #) -> unAf (fmap f af) sz ar1 s1
 
 
 instance Monad (Af es) where
@@ -62,9 +60,9 @@ instance Monad (Af es) where
 
   {-# INLINE (>>=) #-}
   mf >>= ff = Af $ \ sz ar s -> do
-    case runAf mf sz ar s of
+    case unAf mf sz ar s of
       (# ar', s', (# e | #) #) -> (# ar', s', (# e | #) #)
-      (# ar', s', (# | a #) #) -> runAf (ff a) sz ar' s'
+      (# ar', s', (# | a #) #) -> unAf (ff a) sz ar' s'
 
 
 {-# NOINLINE undefinedAfElement #-}
@@ -138,12 +136,28 @@ class Has (e :: Ef) (es :: [Ef]) where
   afIndex :: Int# -> Int#
 
 
-instance Has ('StEf st e) ('StEf st e : es) where
+instance Has ('StateEf st e) ('StateEf st e : es) where
   {-# INLINE afExDepth #-}
-  afExDepth = error "afExDepth of StEf is undefined"
+  afExDepth = error "afExDepth of StateEf is undefined"
 
   {-# INLINE afIndex #-}
   afIndex sz = sz GHC.-# 1#
+
+
+instance Has 'IOEf ('IOEf : es) where
+  {-# INLINE afExDepth #-}
+  afExDepth = error "afExDepth of IOEf is undefined"
+
+  {-# INLINE afIndex #-}
+  afIndex sz = sz
+
+
+instance Has ('STEf st) ('STEf st : es) where
+  {-# INLINE afExDepth #-}
+  afExDepth = error "afExDepth of STEf is undefined"
+
+  {-# INLINE afIndex #-}
+  afIndex sz = sz
 
 
 instance Has ('ExEf ex e) ('ExEf ex e : es) where
@@ -154,12 +168,28 @@ instance Has ('ExEf ex e) ('ExEf ex e : es) where
   afIndex sz = sz
 
 
-instance {-# OVERLAPPABLE #-} Has e es => Has e ('StEf st d : es) where
+instance {-# OVERLAPPABLE #-} Has e es => Has e ('StateEf st d : es) where
   {-# INLINE afExDepth #-}
   afExDepth = afExDepth @e @es
 
   {-# INLINE afIndex #-}
   afIndex sz = afIndex @e @es sz GHC.-# 1#
+
+
+instance {-# OVERLAPPABLE #-} Has e es => Has e ('IOEf : es) where
+  {-# INLINE afExDepth #-}
+  afExDepth = afExDepth @e @es
+
+  {-# INLINE afIndex #-}
+  afIndex sz = afIndex @e @es sz
+
+
+instance {-# OVERLAPPABLE #-} Has e es => Has e ('STEf st : es) where
+  {-# INLINE afExDepth #-}
+  afExDepth = afExDepth @e @es
+
+  {-# INLINE afIndex #-}
+  afIndex sz = afIndex @e @es sz
 
 
 instance {-# OVERLAPPABLE #-} Has e es => Has e ('ExEf ex d : es) where
@@ -170,73 +200,90 @@ instance {-# OVERLAPPABLE #-} Has e es => Has e ('ExEf ex d : es) where
   afIndex sz = afIndex @e @es sz
 
 
-{-# INLINE evalAf #-}
-evalAf :: forall a. Af '[] a -> a
-evalAf af =
-  case GHC.runRW# rw of
-    (# _, a #) -> a
-  where
-    rw :: forall s. State# s -> (# State# s, a #)
-    rw s0 =
-      case initialAfArray s0 of
-        (# s1, ar #) ->
-          case runAf af 1# ar s1 of
-            (# _, s2, (# _ | #) #) -> (# s2, error "TODO" #)
-            (# _, s2, (# | a #) #) -> (# s2, a #)
+{-# INLINE runAf# #-}
+runAf# :: forall es a s. Af es a -> State# s -> (# State# s, a #)
+runAf# af s0 =
+  case initialAfArray s0 of
+    (# s1, ar #) ->
+      case unAf af 1# ar s1 of
+        (# _, s2, (# _ | #) #) -> (# s2, error "TODO" #)
+        (# _, s2, (# | a #) #) -> (# s2, a #)
+
+
+{-# INLINE runAf #-}
+runAf :: forall a. Af '[] a -> a
+runAf af = case GHC.runRW# (runAf# af) of (# _, a #) -> a
+
+
+{-# INLINE runAfIO #-}
+runAfIO :: forall a. Af '[ 'IOEf ] a -> IO a
+runAfIO af = GHC.IO (runAf# af)
+
+
+{-# INLINE runAfST #-}
+runAfST :: forall st a. Af '[ 'STEf st ] a -> ST st a
+runAfST af = ST (runAf# af)
+
+
+{-# INLINE evalAfST #-}
+evalAfST :: forall a. (forall st. Af '[ 'STEf st ] a) -> a
+evalAfST af = runST (runAfST af)
 
 
 ------------------------------ State ---------------------------------
 
 
-{-# INLINE runSt #-}
-runSt ::
+{-# INLINE runState #-}
+runState ::
   forall e st es a b.
-  Af ('StEf st e : es) a -> st -> (a -> st -> Af es b) -> Af es b
-runSt af st k = Af $ \ sz ar0 s0 ->
+  Af ('StateEf st e : es) a -> st -> (a -> st -> Af es b) -> Af es b
+runState af st k = Af $ \ sz ar0 s0 ->
   case appendAfArray sz ar0 st s0 of
     (# ar1, s1, sz' #) ->
-      case runAf af sz' ar1 s1 of
+      case unAf af sz' ar1 s1 of
         (# ar2, s2, (# e | #) #) ->
           (# ar2, writeAfArray ar2 sz undefinedAfElement s2, (# e | #) #)
         (# ar2, s2, (# | a #) #) ->
           case readAfArray ar2 sz s2 of
             (# s3, st' #) ->
               let s4 = writeAfArray ar2 sz undefinedAfElement s3
-              in runAf (k a st') sz ar2 s4
+              in unAf (k a st') sz ar2 s4
 
 
-{-# INLINE localSt #-}
-localSt ::
-  forall e st es a b.
-  Has ('StEf st e) es =>
-  Af es a -> st -> (a -> st -> Af es b) -> Af es b
-localSt af st k = Af $ \ sz ar s0 ->
-  let ix = afIndex @('StEf st e) @es sz in
-  case readAfArray ar ix s0 of
+{-# INLINE localState #-}
+localState ::
+  forall e st es a b c. Has ('StateEf st e) es =>
+  Af es a -> st -> (a -> st -> Af es b) -> (st -> Af es c) -> Af es b
+localState af st k g = Af $ \ sz ar0 s0 ->
+  let ix = afIndex @('StateEf st e) @es sz in
+  case readAfArray ar0 ix s0 of
     (# s1, orig #) ->
-      let s2 = writeAfArray ar ix st s1 in
-      case runAf af sz ar s2 of
-        (# ar', s3, (# e | #) #) ->
-          let s4 = writeAfArray ar' ix orig s3
-          in (# ar', s4, (# e | #) #)
-        (# ar', s3, (# | a #) #) ->
-          case readAfArray ar' ix s3 of
+      let s2 = writeAfArray ar0 ix st s1 in
+      case unAf af sz ar0 s2 of
+        (# ar1, s3, (# e | #) #) ->
+          case readAfArray ar1 ix s3 of
             (# s4, st' #) ->
-              let s5 = writeAfArray ar' ix orig s4
-              in runAf (k a st') sz ar' s5
+              let s5 = writeAfArray ar1 ix orig s4
+                  !(# ar2, s6, _ #) = unAf (g st') sz ar1 s5
+              in (# ar2, s6, (# e | #) #)
+        (# ar1, s3, (# | a #) #) ->
+          case readAfArray ar1 ix s3 of
+            (# s4, st' #) ->
+              let s5 = writeAfArray ar1 ix orig s4
+              in unAf (k a st') sz ar1 s5
 
 
-{-# INLINE putSt #-}
-putSt :: forall e st es. Has ('StEf st e) es => st -> Af es ()
-putSt st = Af $ \ sz ar s ->
-  let i = afIndex @('StEf st e) @es sz
+{-# INLINE putState #-}
+putState :: forall e st es. Has ('StateEf st e) es => st -> Af es ()
+putState st = Af $ \ sz ar s ->
+  let i = afIndex @('StateEf st e) @es sz
   in (# ar, writeAfArray ar i st s, (# | () #) #)
 
 
-{-# INLINE getSt #-}
-getSt :: forall e st es. Has ('StEf st e) es => Af es st
-getSt = Af $ \ sz ar s ->
-  let i = afIndex @('StEf st e) @es sz
+{-# INLINE getState #-}
+getState :: forall e st es. Has ('StateEf st e) es => Af es st
+getState = Af $ \ sz ar s ->
+  let i = afIndex @('StateEf st e) @es sz
   in case readAfArray ar i s of
       (# s', a #) -> (# ar, s', (# | a #) #)
 
@@ -246,25 +293,25 @@ getSt = Af $ \ sz ar s ->
 
 {-# INLINE runEx #-}
 runEx ::
-  forall e ex a b es.
+  forall e ex es a b.
   Af ('ExEf ex e : es) a -> (a -> Af es b) -> (ex -> Af es b) -> Af es b
 runEx af f g = Af $ \ sz ar0 s0 ->
-  case runAf af sz ar0 s0 of
+  case unAf af sz ar0 s0 of
     (# ar1, s1, (# e | #) #) ->
       case readAfArray @Int ar1 0# s1 of
         (# s2, i #) ->
           if i == 0
           then
-            runAf (g (unsafeCoerce e)) sz ar1 s2
+            unAf (g (unsafeCoerce e)) sz ar1 s2
           else
             let s3 = writeStrictAfArray ar1 0# (i - 1) s2
             in (# ar1, s3, (# e | #) #)
     (# ar1, s1, (# | a #) #) ->
-      runAf (f a) sz ar1 s1
+      unAf (f a) sz ar1 s1
 
 
 {-# INLINE throwEx #-}
-throwEx :: forall e ex a es. Has ('ExEf ex e) es => ex -> Af es a
+throwEx :: forall e ex es a. Has ('ExEf ex e) es => ex -> Af es a
 throwEx ex = Af $ \ _ ar s ->
   let s' = writeStrictAfArray @Int ar 0# (afExDepth @('ExEf ex e) @es) s
   in (# ar, s', (# unsafeCoerce ex | #) #)
@@ -354,27 +401,153 @@ writeFromIndexUp dest src i s = copyTo dest i src s
 
 {-# INLINE catchEx #-}
 catchEx ::
-  forall e ex a es b. Has ('ExEf ex e) es =>
-  Af es a -> (a -> Af es b) -> (ex -> Af es b) -> Af es b
-catchEx af f g = Af $ \ sz ar0 s0 ->
+  forall e ex es a b c. Has ('ExEf ex e) es =>
+  Af es a -> (a -> Af es b) -> (ex -> Af es b) -> Af es c -> Af es b
+catchEx af f g r = Af $ \ sz ar0 s0 ->
   let ix = afIndex @('ExEf ex e) @es sz in
   case readFormIndexUp ar0 ix sz s0 of
     (# s1, backup #) ->
-      case runAf af sz ar0 s1 of
+      case unAf af sz ar0 s1 of
         (# ar1, s2, (# e | #) #) ->
           case readAfArray @Int ar1 0# s2 of
             (# s3, i #) ->
               if i == afExDepth @('ExEf ex e) @es
               then
                 let s4 = writeFromIndexUp ar1 backup ix s3
-                in runAf (g (unsafeCoerce e)) sz ar1 s4
+                in unAf (g (unsafeCoerce e)) sz ar1 s4
               else
-                (# ar1, s3, (# e | #) #)
+                let !(# ar2, s4, _ #) = unAf r sz ar1 s3
+                in (# ar2, s4, (# e | #) #)
         (# ar1, s2, (# | a #) #) ->
-          runAf (f a) sz ar1 s2
+          unAf (f a) sz ar1 s2
 
 
-------------------------------- Test --------------------------------
+-------------------------------- ST ----------------------------------
+
+
+{-# INLINE unsafeCoerceState #-}
+unsafeCoerceState :: forall s t. State# s -> State# t
+unsafeCoerceState = GHC.unsafeCoerce#
+
+
+{-# INLINE unsafeCoerceAfArray #-}
+unsafeCoerceAfArray :: forall s t. AfArray s -> AfArray t
+unsafeCoerceAfArray = GHC.unsafeCoerce#
+
+
+data AfEnv s a =
+    AfEnvError !(AfArray s) Any
+  | AfEnvSuccess !(AfArray s) a
+
+
+{-# INLINE unsafeAfEnvError #-}
+unsafeAfEnvError :: forall s t a. AfArray s -> Any -> AfEnv t a
+unsafeAfEnvError ar e = AfEnvError (unsafeCoerceAfArray ar) e
+
+
+{-# INLINE unsafeAfEnvSuccess #-}
+unsafeAfEnvSuccess :: forall s t a. AfArray s -> a -> AfEnv t a
+unsafeAfEnvSuccess ar a = AfEnvSuccess (unsafeCoerceAfArray ar) a
+
+
+{-# INLINE applyST #-}
+applyST :: forall st a. ST st a -> State# st -> (# State# st, a #)
+applyST (ST f) = f
+
+
+type AfToST st es = forall a. Af es a -> ST st (AfEnv st a)
+
+
+{-# INLINE unsafeAfToST #-}
+unsafeAfToST :: forall s st es. Int# -> AfArray s -> AfToST st es
+unsafeAfToST sz ar = \af -> ST $ \s ->
+  case unAf af sz ar (unsafeCoerceState s) of
+    (# ar', s', (# e | #) #) ->
+      (# unsafeCoerceState s', unsafeAfEnvError ar' e #)
+    (# ar', s', (# | a #) #) ->
+      (# unsafeCoerceState s', unsafeAfEnvSuccess ar' a #)
+
+
+{-# INLINE controlST #-}
+controlST ::
+  forall st es a. Has ('STEf st) es =>
+  (AfToST st es -> ST st (AfEnv st a)) -> Af es a
+controlST f = Af $ \ sz ar0 s0 ->
+  case applyST (f (unsafeAfToST sz ar0)) (unsafeCoerceState s0) of
+    (# s1, AfEnvError ar1 e #) ->
+      (# unsafeCoerceAfArray ar1, unsafeCoerceState s1, (# e | #) #)
+    (# s1, AfEnvSuccess ar1 a #) ->
+      (# unsafeCoerceAfArray ar1, unsafeCoerceState s1, (# | a #) #)
+
+
+{-# INLINE doST #-}
+doST :: forall st es a. Has ('STEf st) es => ST st a -> Af es a
+doST st = Af $ \ _ ar s0 ->
+  let !(# s1, a #) = applyST st (unsafeCoerceState s0)
+  in (# ar, unsafeCoerceState s1, (# | a #) #)
+
+
+---------------------------------- IO --------------------------------
+
+
+newtype AfEnvIO a = AfEnvIO (AfEnv GHC.RealWorld a)
+
+
+{-# INLINE unsafeAfEnvIOError #-}
+unsafeAfEnvIOError :: forall s a. AfArray s -> Any -> AfEnvIO a
+unsafeAfEnvIOError ar e = AfEnvIO (unsafeAfEnvError ar e)
+
+
+{-# INLINE unsafeAfEnvIoSuccess #-}
+unsafeAfEnvIoSuccess :: forall s a. AfArray s -> a -> AfEnvIO a
+unsafeAfEnvIoSuccess ar a = AfEnvIO (unsafeAfEnvSuccess ar a)
+
+
+type AfToIO es = forall a. Af es a -> IO (AfEnvIO a)
+
+
+{-# INLINE unsafeAfToIO #-}
+unsafeAfToIO :: forall es s. Int# -> AfArray s -> AfToIO es
+unsafeAfToIO sz ar = \af -> GHC.IO $ \s ->
+  case unAf af sz ar (unsafeCoerceState s) of
+    (# ar', s', (# e | #) #) ->
+      (# unsafeCoerceState s', unsafeAfEnvIOError ar' e #)
+    (# ar', s', (# | a #) #) ->
+      (# unsafeCoerceState s', unsafeAfEnvIoSuccess ar' a #)
+
+
+{-# INLINE unsafeControlIO #-}
+unsafeControlIO ::
+  forall es a.
+  (AfToIO es -> IO (AfEnvIO a)) -> Af es a
+unsafeControlIO f = Af $ \ sz ar0 s0 ->
+  case GHC.unIO (f (unsafeAfToIO sz ar0)) (unsafeCoerceState s0) of
+    (# s1, AfEnvIO (AfEnvError ar1 e) #) ->
+      (# unsafeCoerceAfArray ar1, unsafeCoerceState s1, (# e | #) #)
+    (# s1, AfEnvIO (AfEnvSuccess ar1 a) #) ->
+      (# unsafeCoerceAfArray ar1, unsafeCoerceState s1, (# | a #) #)
+
+
+{-# INLINE unsafeDoIO #-}
+unsafeDoIO :: forall es a. IO a -> Af es a
+unsafeDoIO io = Af $ \ _ ar s0 ->
+  let !(# s1, a #) = GHC.unIO io (unsafeCoerceState s0)
+  in (# ar, unsafeCoerceState s1, (# | a #) #)
+
+
+{-# INLINE controlIO #-}
+controlIO ::
+  forall es a. Has 'IOEf es =>
+  (AfToIO es -> IO (AfEnvIO a)) -> Af es a
+controlIO = unsafeControlIO
+
+
+{-# INLINE doIO #-}
+doIO :: forall es a. Has 'IOEf es => IO a -> Af es a
+doIO = unsafeDoIO
+
+
+------------------------------- Test ---------------------------------
 
 
 data TestState1 :: *
@@ -384,50 +557,50 @@ data TestExc1 :: *
 
 {-# NOINLINE catchClause #-}
 catchClause ::
+{-
   es ~
-    '[ 'StEf Bool TestState2
-     , 'StEf Int TestState1
+    '[ 'StateEf Bool TestState2
+     , 'StateEf Int TestState1
      , 'ExEf String TestExc1
      ] =>
-{-
-  Has ('StEf Bool TestState2) es =>
-  Has ('StEf Int TestState1) es =>
-  Has ('ExEf String TestExc1) es =>
 -}
+  Has ('StateEf Bool TestState2) es =>
+  Has ('StateEf Int TestState1) es =>
+  Has ('ExEf String TestExc1) es =>
   String -> Af es Int
 catchClause _ = do
-  !x <- getSt @TestState1
-  !y <- getSt @TestState2
+  !x <- getState @TestState1
+  !y <- getState @TestState2
   return $ if y then x + 1 else x
 
 
 {-# NOINLINE testLoop #-}
 testLoop ::
+{-
   es ~
-    '[ 'StEf Bool TestState2
-     , 'StEf Int TestState1
+    '[ 'StateEf Bool TestState2
+     , 'StateEf Int TestState1
      , 'ExEf String TestExc1
      ] =>
-{-
-  Has ('StEf Bool TestState2) es =>
-  Has ('StEf Int TestState1) es =>
-  Has ('ExEf String TestExc1) es =>
 -}
+  Has ('StateEf Bool TestState2) es =>
+  Has ('StateEf Int TestState1) es =>
+  Has ('ExEf String TestExc1) es =>
   Int -> Af es Int
 testLoop 0 = do
-  !x <- getSt @TestState1
-  !y <- getSt @TestState2
+  !x <- getState @TestState1
+  !y <- getState @TestState2
   if x < 0
   then throwEx @TestExc1 "fail!"
   else return $ if y then x + 1 else x
 testLoop i = do
   catchEx @TestExc1 @String (do
-      !x <- getSt @TestState1 @Int
-      !y <- getSt @TestState2 @Bool
-      putSt @TestState1 (x + 1)
-      putSt @TestState2 (not y)
+      !x <- getState @TestState1 @Int
+      !y <- getState @TestState2 @Bool
+      putState @TestState1 (x + 1)
+      putState @TestState2 (not y)
       testLoop (i - 1)
-    ) return catchClause
+    ) return catchClause (return ())
 
 
 {-# NOINLINE catchClauseT #-}
@@ -455,44 +628,41 @@ testLoopT i = flip T.catchError catchClauseT $ do
   testLoopT (i - 1)
 
 
-globalWriterListen :: T.ExceptT String (T.Writer String) String
+globalWriterListen :: T.ExceptT String (T.Writer String) ()
 globalWriterListen = do
-  ((), w) <- T.listen (T.tell "hello" >> T.throwError "fail")
-  return w
+  T.pass (T.tell "hello" >> return ((), (\s -> "!"++s++"!")))
 
 
 main :: IO ()
 main = do
-  print $ T.runWriter (T.runExceptT globalWriterListen)
-{-
-  print $ evalAf $
+  x <- runAfIO $
     (runEx @TestExc1 @String
-      (runSt @TestState1
-        (runSt @TestState2
+      (runState @TestState1
+        (runState @TestState2
           (testLoop 1000000)
         False (\i s -> return (i, s)))
       (0 :: Int) (\i s -> return (i, s))))
     (return . Right) (return . Left)
--}
+  print x
 {-
-  print $ evalAf $
+  print $ runAf $
     (runEx @TestExc1 @String
-      (runSt @TestState1
-        (runSt @TestState2
-          (runSt @TestState1
-            (runSt @TestState2
-              (runSt @TestState1
-                (runSt @TestState2
-                  (runSt @TestState1
-                    (runSt @TestState2
-                      (runSt @TestState1
-                        (runSt @TestState2
-                          (runSt @TestState1
-                            (runSt @TestState2
-                              (runSt @TestState1
-                                (runSt @TestState2
-                                  (runSt @TestState1
-                                    (runSt @TestState2
+      (runState @TestState1
+        (runState @TestState2
+          (runState @TestState1
+            (runState @TestState2
+              (runState @TestState1
+                (runState @TestState2
+                  (runState @TestState1
+                    (runState @TestState2
+                      (runState @TestState1
+                        (runState @TestState2
+                          (runState @TestState1
+                            (runState @TestState2
+                              (runState @TestState1
+                                (runState @TestState2
+                                  (runState @TestState1
+                                    (runState @TestState2
                                       (testLoop 1000000)
                                     False (\ i s -> return (i, s)))
                                   (0 :: Int) (\ i s -> return (i, s)))
@@ -513,3 +683,4 @@ main = do
     (return . Right) (return . Left)
 -}
   --print (T.runExceptT (T.runStateT (T.runStateT (testLoopT 1000000) False) 0))
+  --print $ T.runWriter (T.runExceptT globalWriterListen)
