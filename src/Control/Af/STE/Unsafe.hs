@@ -1,7 +1,8 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module Control.Af.Effect.ST
-  ( AfEnv (..)
+module Control.Af.STE.Unsafe
+  ( STE
+  , AfEnv (..)
   , unsafeAfEnvError
   , unsafeAfEnvSuccess
   , unST
@@ -11,10 +12,11 @@ module Control.Af.Effect.ST
   , liftST
   ) where
 
-import Control.Af.Internal
-import Control.Af.Effect
-import Control.Af.Af
-import Control.Af.In
+import Control.Af.Internal.Effect
+import Control.Af.Internal.AfArray
+import Control.Af.Internal.Af
+import Control.Af.Internal.In
+import Control.Af.Internal.Util
 
 import GHC.Exts
   ( Any

@@ -1,8 +1,9 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Control.Af.Effect.IO
-  ( AfEnvIO (..)
+module Control.Af.IOE.Unsafe
+  ( IOE
+  , AfEnvIO (..)
   , unsafeAfEnvIOError
   , unsafeAfEnvIOSuccess
   , AfToIO
@@ -13,11 +14,13 @@ module Control.Af.Effect.IO
   , liftIO
   ) where
 
-import Control.Af.Internal
-import Control.Af.Effect
-import Control.Af.Effect.ST
-import Control.Af.Af
-import Control.Af.In
+import Control.Af.Internal.Effect
+import Control.Af.Internal.AfArray
+import Control.Af.Internal.Af
+import Control.Af.Internal.In
+import Control.Af.Internal.Util
+
+import Control.Af.STE.Unsafe
 
 import GHC.Exts
   ( Any

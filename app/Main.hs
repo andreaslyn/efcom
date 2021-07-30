@@ -2,13 +2,11 @@
 
 module Main where
 
-import Control.Af.Effect
-import Control.Af.Af
-import Control.Af.In
-import Control.Af.Effect.State
-import Control.Af.Effect.Except
-import Control.Af.Effect.ST
-import Control.Af.Effect.IO
+import Control.Af
+import Control.Af.StateE
+import Control.Af.ExceptE
+import Control.Af.STE
+import Control.Af.IOE
 
 import qualified Control.Monad.Writer as T
 import qualified Control.Monad.Except as T

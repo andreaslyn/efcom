@@ -1,6 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module Control.Af.Effect.State
+module Control.Af.StateE
   ( StateE
   , runState
   , local
@@ -8,9 +8,10 @@ module Control.Af.Effect.State
   , put
   ) where
 
-import Control.Af.Effect
-import Control.Af.Af
-import Control.Af.In
+import Control.Af.Internal.Effect
+import Control.Af.Internal.AfArray
+import Control.Af.Internal.Af
+import Control.Af.Internal.In
 
 
 {-# INLINE runState #-}
@@ -22,11 +23,11 @@ runState af st k = Af $ \ sz ar0 s0 ->
     (# ar1, s1, sz' #) ->
       case unAf af sz' ar1 s1 of
         (# ar2, s2, (# e | #) #) ->
-          (# ar2, writeAfArray ar2 sz undefinedAfElement s2, (# e | #) #)
+          (# ar2, writeAfArray ar2 sz undefinedElementAfArray s2, (# e | #) #)
         (# ar2, s2, (# | a #) #) ->
           case readAfArray ar2 sz s2 of
             (# s3, st' #) ->
-              let s4 = writeAfArray ar2 sz undefinedAfElement s3
+              let s4 = writeAfArray ar2 sz undefinedElementAfArray s3
               in unAf (k a st') sz ar2 s4
 
 
@@ -66,5 +67,3 @@ get = Af $ \ sz ar s ->
   let i = afStIndex @(StateE st e) @es sz
   in case readAfArray ar i s of
       (# s', a #) -> (# ar, s', (# | a #) #)
-
-

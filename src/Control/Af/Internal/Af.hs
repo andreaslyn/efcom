@@ -1,6 +1,16 @@
-module Control.Af.Af where
+module Control.Af.Internal.Af
+  ( Af (..)
+  , runAf#
+  , runAf
+  , runAfIO
+  , runAfST
+  , evalAfST
+  , runAfSTIO
+  , meetEffect
+  ) where
 
-import Control.Af.Effect
+import Control.Af.Internal.Effect
+import Control.Af.Internal.AfArray
 
 import GHC.Exts
   ( Any
@@ -15,14 +25,12 @@ import GHC.ST (ST (..), runST)
 import Unsafe.Coerce (unsafeCoerce)
 
 
-type AfArray (s :: *) = GHC.MutableArray# s Any
-
-
 newtype Af (es :: [*]) (a :: *) =
   Af
-  { unAf :: forall s.
-      Int# -> AfArray s ->
-      State# s -> (# AfArray s, State# s, (# Any | a #) #)
+  { unAf ::
+      forall s.
+      Int# -> AfArray s -> State# s ->
+      (# AfArray s, State# s, (# Any | a #) #)
   }
 
 
@@ -56,68 +64,9 @@ instance Monad (Af es) where
       (# ar', s', (# | a #) #) -> unAf (ff a) sz ar' s'
 
 
-{-# NOINLINE undefinedAfElement #-}
-undefinedAfElement :: Any
-undefinedAfElement = error "undefined AfArray element"
-
-
-{-# INLINE newAfArray #-}
-newAfArray :: forall s. Int# -> State# s -> (# State# s, AfArray s #)
-newAfArray n s = GHC.newArray# n undefinedAfElement s
-
-
-{-# INLINE capacityAfArray #-}
-capacityAfArray :: forall s. AfArray s -> Int#
-capacityAfArray = GHC.sizeofMutableArray#
-
-
 {-# INLINE initialAfArray #-}
 initialAfArray :: forall s. State# s -> (# State# s, AfArray s #)
 initialAfArray s = newAfArray 2# s
-
-
-{-# INLINE writeAfArray #-}
-writeAfArray ::
-  forall a s. AfArray s -> Int# -> a -> State# s -> State# s
-writeAfArray ar i a s = GHC.writeArray# ar i (unsafeCoerce a) s
-
-
-{-# INLINE writeStrictAfArray #-}
-writeStrictAfArray ::
-  forall a s. AfArray s -> Int# -> a -> State# s -> State# s
-writeStrictAfArray ar i !a s = GHC.writeArray# ar i (unsafeCoerce a) s
-
-
-{-# INLINE readAfArray #-}
-readAfArray ::
-  forall a s. AfArray s -> Int# -> State# s -> (# State# s, a #)
-readAfArray ar i s =
-  case GHC.readArray# ar i s of
-    (# s', a #) -> (# s', unsafeCoerce a #)
-
-
-{-# INLINE doubleAfArray #-}
-doubleAfArray ::
-  forall s. AfArray s -> State# s -> (# State# s, AfArray s #)
-doubleAfArray ar s =
-  let cap = capacityAfArray ar
-      newSize = GHC.uncheckedIShiftL# cap 1#
-  in case newAfArray newSize s of
-      (# s1, ar' #) ->
-        let s2 = GHC.copyMutableArray# ar 0# ar' 0# cap s1
-        in (# s2, ar' #)
-
-
-{-# INLINE appendAfArray #-}
-appendAfArray ::
-  forall a s.
-  Int# -> AfArray s -> a -> State# s -> (# AfArray s, State# s, Int# #)
-appendAfArray sz ar a s = do
-  case sz GHC.<# capacityAfArray ar of
-    1# -> (# ar, writeAfArray ar sz a s, sz GHC.+# 1# #)
-    _ ->
-      case doubleAfArray ar s of
-        (# s', ar' #) -> (# ar', writeAfArray ar' sz a s', sz GHC.+# 1# #)
 
 
 {-# INLINE runAf# #-}

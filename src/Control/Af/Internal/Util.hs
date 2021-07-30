@@ -1,6 +1,9 @@
-module Control.Af.Internal where
+module Control.Af.Internal.Util
+  ( unsafeCoerceState
+  , unsafeCoerceAfArray
+  ) where
 
-import Control.Af.Af
+import Control.Af.Internal.AfArray
 
 import GHC.Exts (State#, unsafeCoerce#)
 

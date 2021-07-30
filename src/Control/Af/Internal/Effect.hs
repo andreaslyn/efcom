@@ -1,4 +1,4 @@
-module Control.Af.Effect
+module Control.Af.Internal.Effect
   ( Effect
   , ApplyEffect
   , MeetEffect
@@ -12,11 +12,12 @@ module Control.Af.Effect
 type family Effect (e :: * -> *) :: [* -> *]
 
 
-type ApplyEffect (e :: * -> *) (i :: *) = ApplyAll (Effect e) (e i)
+type ApplyEffect (e :: * -> *) (tag :: *) =
+  ApplyAll (Effect e) (e tag)
 
 
-type MeetEffect (e :: * -> *) (i :: *) (es :: [*])
-  = Append (ApplyEffect e i) es
+type MeetEffect (e :: * -> *) (tag :: *) (es :: [*])
+  = Append (ApplyEffect e tag) es
 
 
 type family ApplyAll (fs :: [* -> *]) (x :: *) :: [*] where
@@ -31,8 +32,8 @@ type family Append (ds :: [*]) (es :: [*]) :: [*] where
 
 data IOE :: *
 
-data STE (s :: *) :: *
+data STE (st :: *) :: *
 
-data StateE (state :: *) (label :: *) :: *
+data StateE (state :: *) (tag :: *) :: *
 
-data ExceptE (except :: *) (label :: *) :: *
+data ExceptE (except :: *) (tag :: *) :: *

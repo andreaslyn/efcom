@@ -1,9 +1,15 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module Control.Af.In where
+module Control.Af.Internal.In
+  ( IsIn (..)
+  , afExDepth
+  , afStIndex
+  , In
+  , AllIn
+  ) where
 
-import Control.Af.Effect
+import Control.Af.Internal.Effect
 
 import GHC.Exts (Int#, (-#))
 

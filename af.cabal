@@ -25,35 +25,38 @@ source-repository head
 
 library
   exposed-modules:
-      Control.Af.Af
-      Control.Af.Effect
-      Control.Af.Effect.Except
-      Control.Af.Effect.IO
-      Control.Af.Effect.ST
-      Control.Af.Effect.State
-      Control.Af.In
-      Control.Af.Internal
-      Old
+      Control.Af
+      Control.Af.ExceptE
+      Control.Af.Internal.Af
+      Control.Af.Internal.AfArray
+      Control.Af.Internal.Effect
+      Control.Af.Internal.In
+      Control.Af.Internal.Util
+      Control.Af.IOE
+      Control.Af.IOE.Unsafe
+      Control.Af.StateE
+      Control.Af.STE
+      Control.Af.STE.Unsafe
   other-modules:
       Paths_af
   hs-source-dirs:
       src
   default-extensions:
-      RankNTypes
-      KindSignatures
-      DataKinds
-      ScopedTypeVariables
-      InstanceSigs
-      MagicHash
       BangPatterns
+      TypeFamilies
+      ScopedTypeVariables
+      DataKinds
       TypeApplications
       TypeOperators
+      RankNTypes
+      KindSignatures
+      InstanceSigs
       MultiParamTypeClasses
       FlexibleInstances
       FlexibleContexts
+      MagicHash
       UnboxedTuples
       UnboxedSums
-      TypeFamilies
   build-depends:
       array
     , base >=4.7 && <5
@@ -68,21 +71,21 @@ executable af-exe
   hs-source-dirs:
       app
   default-extensions:
-      RankNTypes
-      KindSignatures
-      DataKinds
-      ScopedTypeVariables
-      InstanceSigs
-      MagicHash
       BangPatterns
+      TypeFamilies
+      ScopedTypeVariables
+      DataKinds
       TypeApplications
       TypeOperators
+      RankNTypes
+      KindSignatures
+      InstanceSigs
       MultiParamTypeClasses
       FlexibleInstances
       FlexibleContexts
+      MagicHash
       UnboxedTuples
       UnboxedSums
-      TypeFamilies
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       af
@@ -100,21 +103,21 @@ test-suite af-test
   hs-source-dirs:
       test
   default-extensions:
-      RankNTypes
-      KindSignatures
-      DataKinds
-      ScopedTypeVariables
-      InstanceSigs
-      MagicHash
       BangPatterns
+      TypeFamilies
+      ScopedTypeVariables
+      DataKinds
       TypeApplications
       TypeOperators
+      RankNTypes
+      KindSignatures
+      InstanceSigs
       MultiParamTypeClasses
       FlexibleInstances
       FlexibleContexts
+      MagicHash
       UnboxedTuples
       UnboxedSums
-      TypeFamilies
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       af
