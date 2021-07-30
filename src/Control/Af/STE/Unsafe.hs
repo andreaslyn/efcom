@@ -1,5 +1,3 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-
 module Control.Af.STE.Unsafe
   ( STE
   , AfEnv (..)

@@ -54,6 +54,7 @@ default-extensions:
   - BangPatterns
   - TypeFamilies
   - ScopedTypeVariables
+  - ConstraintKinds
   - DataKinds
   - TypeApplications
   - TypeOperators

@@ -54,11 +54,11 @@ instance IsIn (ExceptE ex e) (ExceptE ex e : es) where
 
 
 instance {-# OVERLAPPABLE #-}
-         IsIn e (MeetEffect d i es) =>
-         IsIn e (d i : es)
+         IsIn e (MeetEffect d es) =>
+         IsIn e (d : es)
   where
   {-# INLINE afExDepthStIndex #-}
-  afExDepthStIndex = afExDepthStIndex @e @(MeetEffect d i es)
+  afExDepthStIndex = afExDepthStIndex @e @(MeetEffect d es)
 
 
 instance {-# OVERLAPPABLE #-} IsIn e es => IsIn e (StateE st d : es) where
@@ -88,7 +88,7 @@ type family In (e :: *) (es :: [*]) where
   In (STE st) es = IsIn (STE st) es
   In (StateE st i) es = IsIn (StateE st i) es
   In (ExceptE ex i) es = IsIn (ExceptE ex i) es
-  In (e i) es = AllIn (ApplyEffect e i) es
+  In e es = AllIn (ApplyEffect e) es
 
 
 type family AllIn (ds :: [*]) (es :: [*]) :: Constraint where

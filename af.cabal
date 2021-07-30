@@ -45,6 +45,7 @@ library
       BangPatterns
       TypeFamilies
       ScopedTypeVariables
+      ConstraintKinds
       DataKinds
       TypeApplications
       TypeOperators
@@ -74,6 +75,7 @@ executable af-exe
       BangPatterns
       TypeFamilies
       ScopedTypeVariables
+      ConstraintKinds
       DataKinds
       TypeApplications
       TypeOperators
@@ -106,6 +108,7 @@ test-suite af-test
       BangPatterns
       TypeFamilies
       ScopedTypeVariables
+      ConstraintKinds
       DataKinds
       TypeApplications
       TypeOperators

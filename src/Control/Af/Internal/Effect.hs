@@ -9,15 +9,14 @@ module Control.Af.Internal.Effect
   ) where
 
 
-type family Effect (e :: * -> *) :: [* -> *]
+type family Effect (e :: *) :: [* -> *]
 
 
-type ApplyEffect (e :: * -> *) (tag :: *) =
-  ApplyAll (Effect e) (e tag)
+type ApplyEffect (e :: *) = ApplyAll (Effect e) e
 
 
-type MeetEffect (e :: * -> *) (tag :: *) (es :: [*])
-  = Append (ApplyEffect e tag) es
+type MeetEffect (e :: *) (es :: [*])
+  = Append (ApplyEffect e) es
 
 
 type family ApplyAll (fs :: [* -> *]) (x :: *) :: [*] where

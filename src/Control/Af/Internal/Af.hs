@@ -107,5 +107,5 @@ runAfSTIO af = GHC.IO (runAf# af)
 
 
 {-# INLINE meetEffect #-}
-meetEffect :: forall e i es a. Af (e i : es) a -> Af (MeetEffect e i es) a
+meetEffect :: forall e es a. Af (e : es) a -> Af (MeetEffect e es) a
 meetEffect = unsafeCoerce
