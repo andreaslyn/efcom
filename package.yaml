@@ -51,18 +51,18 @@ tests:
     - af
 
 default-extensions:
-  - RankNTypes
-  - KindSignatures
-  - DataKinds
-  - ScopedTypeVariables
-  - InstanceSigs
-  - MagicHash
   - BangPatterns
+  - TypeFamilies
+  - ScopedTypeVariables
+  - DataKinds
   - TypeApplications
   - TypeOperators
+  - RankNTypes
+  - KindSignatures
+  - InstanceSigs
   - MultiParamTypeClasses
   - FlexibleInstances
   - FlexibleContexts
+  - MagicHash
   - UnboxedTuples
   - UnboxedSums
-  - TypeFamilies

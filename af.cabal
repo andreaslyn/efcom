@@ -25,6 +25,14 @@ source-repository head
 
 library
   exposed-modules:
+      Control.Af.Af
+      Control.Af.Effect
+      Control.Af.Effect.Except
+      Control.Af.Effect.IO
+      Control.Af.Effect.ST
+      Control.Af.Effect.State
+      Control.Af.In
+      Control.Af.Internal
       Old
   other-modules:
       Paths_af

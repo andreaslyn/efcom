@@ -1,0 +1,76 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
+module Control.Af.Effect.ST
+  ( AfEnv (..)
+  , unsafeAfEnvError
+  , unsafeAfEnvSuccess
+  , unST
+  , AfToST
+  , unsafeAfToST
+  , controlST
+  , liftST
+  ) where
+
+import Control.Af.Internal
+import Control.Af.Effect
+import Control.Af.Af
+import Control.Af.In
+
+import GHC.Exts
+  ( Any
+  , State#
+  , Int#
+  )
+import GHC.ST (ST (..))
+
+
+data AfEnv s a =
+    AfEnvError !(AfArray s) Any
+  | AfEnvSuccess !(AfArray s) a
+
+
+{-# INLINE unsafeAfEnvError #-}
+unsafeAfEnvError :: forall s t a. AfArray s -> Any -> AfEnv t a
+unsafeAfEnvError ar e = AfEnvError (unsafeCoerceAfArray ar) e
+
+
+{-# INLINE unsafeAfEnvSuccess #-}
+unsafeAfEnvSuccess :: forall s t a. AfArray s -> a -> AfEnv t a
+unsafeAfEnvSuccess ar a = AfEnvSuccess (unsafeCoerceAfArray ar) a
+
+
+{-# INLINE unST #-}
+unST :: forall st a. ST st a -> State# st -> (# State# st, a #)
+unST (ST f) = f
+
+
+type AfToST st es = forall a. Af es a -> ST st (AfEnv st a)
+
+
+{-# INLINE unsafeAfToST #-}
+unsafeAfToST :: forall s st es. Int# -> AfArray s -> AfToST st es
+unsafeAfToST sz ar = \af -> ST $ \s ->
+  case unAf af sz ar (unsafeCoerceState s) of
+    (# ar', s', (# e | #) #) ->
+      (# unsafeCoerceState s', unsafeAfEnvError ar' e #)
+    (# ar', s', (# | a #) #) ->
+      (# unsafeCoerceState s', unsafeAfEnvSuccess ar' a #)
+
+
+{-# INLINE controlST #-}
+controlST ::
+  forall st es a. In (STE st) es =>
+  (AfToST st es -> ST st (AfEnv st a)) -> Af es a
+controlST f = Af $ \ sz ar0 s0 ->
+  case unST (f (unsafeAfToST sz ar0)) (unsafeCoerceState s0) of
+    (# s1, AfEnvError ar1 e #) ->
+      (# unsafeCoerceAfArray ar1, unsafeCoerceState s1, (# e | #) #)
+    (# s1, AfEnvSuccess ar1 a #) ->
+      (# unsafeCoerceAfArray ar1, unsafeCoerceState s1, (# | a #) #)
+
+
+{-# INLINE liftST #-}
+liftST :: forall st es a. In (STE st) es => ST st a -> Af es a
+liftST st = Af $ \ _ ar s0 ->
+  let !(# s1, a #) = unST st (unsafeCoerceState s0)
+  in (# ar, unsafeCoerceState s1, (# | a #) #)
