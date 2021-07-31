@@ -1,5 +1,7 @@
 module Control.Af.STE.Unsafe
   ( STE
+  , runSTE
+  , withSTE
   , AfEnv (..)
   , unsafeAfEnvError
   , unsafeAfEnvSuccess
@@ -21,7 +23,17 @@ import GHC.Exts
   , State#
   , Int#
   )
-import GHC.ST (ST (..))
+import GHC.ST (ST (..), runST)
+
+
+{-# INLINE withSTE #-}
+withSTE :: forall st a. Af '[STE st] a -> ST st a
+withSTE af = ST (runAf# af)
+
+
+{-# INLINE runSTE #-}
+runSTE :: forall a. (forall st. Af '[STE st] a) -> a
+runSTE af = runST (withSTE af)
 
 
 data AfEnv s a =

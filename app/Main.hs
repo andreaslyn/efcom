@@ -1,8 +1,8 @@
 module Main where
 
 import Control.Af
-import Control.Af.StateE
-import Control.Af.ExceptE
+import Control.Af.Cell
+import Control.Af.Shortcut
 import Control.Af.STE
 import Control.Af.IOE
 
@@ -20,18 +20,18 @@ import Data.STRef (STRef, newSTRef, writeSTRef, readSTRef)
 {-# NOINLINE catchClause #-}
 catchClause ::
   AllIn
-  '[StateE Bool Composite
-  , StateE Int (OtherState Composite)
-  , ExceptE String ()] es =>
+  '[Cell Bool Composite
+  , Cell Int (OtherState Composite)
+  , Shortcut String ()] es =>
   String -> Af es (Int, Int)
 catchClause _ = do
-  !x <- get @(OtherState Composite)
-  !y <- get @Composite
+  !x <- readCell @(OtherState Composite)
+  !y <- readCell @Composite
   return $ if y then (x + 1, x + 1) else (x, x)
 
 
 data OtherState (i :: *)
-type instance Effect (OtherState i) = '[StateE Int]
+type instance Effect (OtherState i) = '[Cell Int]
 
 
 unOtherState ::
@@ -41,7 +41,7 @@ unOtherState = meetEffect
 
 
 data Composite
-type instance Effect Composite = '[StateE Bool, OtherState]
+type instance Effect Composite = '[Cell Bool, OtherState]
 
 
 unComposite ::
@@ -53,22 +53,22 @@ unComposite = meetEffect
 {-# NOINLINE testLoop #-}
 testLoop ::
   forall st es.
-  AllIn '[Composite, ExceptE String (), STE st] es =>
+  AllIn '[Composite, Shortcut String (), STE st] es =>
   STRef st Int -> Int -> Af es (Int, Int)
 testLoop r 0 = do
-  !x <- get @(OtherState Composite) @Int
-  !y <- get @Composite
+  x <- readCell @(OtherState Composite) @Int
+  y <- readCell @Composite
   !z <- liftST (readSTRef r)
   if x < 0
-  then raise @() "fail!"
+  then takeShortcut @() "fail!"
   else return $ if y then (z + 1, x + 1) else (z, x)
 testLoop r i = do
-  except @() @String (do
-      !x <- get @(OtherState Composite) @Int
-      !y <- get @Composite @Bool
+  scopeShortcut @() @String (do
+      x <- readCell @(OtherState Composite) @Int
+      y <- readCell @Composite @Bool
       !z <- liftST (readSTRef r)
-      put @(OtherState Composite) (x + 1)
-      put @Composite (not y)
+      writeCell @(OtherState Composite) (x + 1)
+      writeCell @Composite (not y)
       liftST (writeSTRef r (z + 1))
       testLoop r (i - 1)
     ) return catchClause (return ())
@@ -105,12 +105,12 @@ globalWriterListen = do
 
 
 loopWithST ::
-  forall st. Af '[ExceptE String (), STE st, IOE] (((Int, Int), Bool), Int)
+  forall st. Af '[Shortcut String (), STE st, IOE] (((Int, Int), Bool), Int)
 loopWithST = do
   r <- liftST @st (newSTRef (0 :: Int))
-  (runState @(OtherState Composite)
+  (runCell @(OtherState Composite)
           (unOtherState
-            (runState @Composite
+            (runCell @Composite
               (liftIO (putStrLn "hello 2") >> unComposite (liftIO (putStrLn "hello 3") >> (testLoop r 1000000)))
             False (\i s -> return (i, s))))
         (0 :: Int) (\i s -> return (i, s)))
@@ -118,30 +118,30 @@ loopWithST = do
 
 main :: IO ()
 main = do
-  x <- runAfSTIO $ do
+  x <- withIOERunSTE $ do
     liftIO (putStrLn "hello 1")
-    runExcept @() @String loopWithST
+    runShortcut @() @String loopWithST
       (return . Right) (return . Left)
   print x
 {-
-  print $ runAf $
-    (runExcept @() @String
-      (runState @(OtherState Composite)
-        (runState @Composite
-          (runState @(OtherState Composite)
-            (runState @Composite
-              (runState @(OtherState Composite)
-                (runState @Composite
-                  (runState @(OtherState Composite)
-                    (runState @Composite
-                      (runState @(OtherState Composite)
-                        (runState @Composite
-                          (runState @(OtherState Composite)
-                            (runState @Composite
-                              (runState @(OtherState Composite)
-                                (runState @Composite
-                                  (runState @(OtherState Composite)
-                                    (runState @Composite
+  print $ pureAf $
+    (runShortcut @() @String
+      (runCell @(OtherState Composite)
+        (runCell @Composite
+          (runCell @(OtherState Composite)
+            (runCell @Composite
+              (runCell @(OtherState Composite)
+                (runCell @Composite
+                  (runCell @(OtherState Composite)
+                    (runCell @Composite
+                      (runCell @(OtherState Composite)
+                        (runCell @Composite
+                          (runCell @(OtherState Composite)
+                            (runCell @Composite
+                              (runCell @(OtherState Composite)
+                                (runCell @Composite
+                                  (runCell @(OtherState Composite)
+                                    (runCell @Composite
                                       (testLoop 1000000)
                                     False (\ i s -> return (i, s)))
                                   (0 :: Int) (\ i s -> return (i, s)))

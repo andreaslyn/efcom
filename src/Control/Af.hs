@@ -6,11 +6,7 @@ module Control.Af
 
 import Control.Af.Internal.Af
   ( Af
-  , runAf
-  , runAfIO
-  , runAfST
-  , evalAfST
-  , runAfSTIO
+  , pureAf
   , meetEffect
   )
 

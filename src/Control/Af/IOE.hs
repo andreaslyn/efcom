@@ -4,6 +4,8 @@ module Control.Af.IOE
 
 import Control.Af.IOE.Unsafe
   ( IOE
+  , withIOE
+  , withIOERunSTE
   , AfEnvIO (..)
   , AfToIO
   , controlIO

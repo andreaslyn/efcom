@@ -3,6 +3,8 @@
 
 module Control.Af.IOE.Unsafe
   ( IOE
+  , withIOE
+  , withIOERunSTE
   , AfEnvIO (..)
   , unsafeAfEnvIOError
   , unsafeAfEnvIOSuccess
@@ -30,6 +32,16 @@ import qualified GHC.Exts as GHC
 import qualified GHC.IO as GHC
 
 import Control.Monad.IO.Class (MonadIO (..))
+
+
+{-# INLINE withIOE #-}
+withIOE :: forall a. Af '[IOE] a -> IO a
+withIOE af = GHC.IO (runAf# af)
+
+
+{-# INLINE withIOERunSTE #-}
+withIOERunSTE :: forall a. (forall st. Af '[STE st, IOE] a) -> IO a
+withIOERunSTE af = GHC.IO (runAf# af)
 
 
 newtype AfEnvIO a = AfEnvIO (AfEnv GHC.RealWorld a)

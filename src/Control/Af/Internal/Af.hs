@@ -1,11 +1,7 @@
 module Control.Af.Internal.Af
   ( Af (..)
   , runAf#
-  , runAf
-  , runAfIO
-  , runAfST
-  , evalAfST
-  , runAfSTIO
+  , pureAf
   , meetEffect
   ) where
 
@@ -18,9 +14,6 @@ import GHC.Exts
   , Int#
   )
 import qualified GHC.Exts as GHC
-import qualified GHC.IO as GHC
-
-import GHC.ST (ST (..), runST)
 
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -81,29 +74,9 @@ runAf# af s0 =
           (# s2, a #)
 
 
-{-# INLINE runAf #-}
-runAf :: forall a. Af '[] a -> a
-runAf af = case GHC.runRW# (runAf# af) of (# _, a #) -> a
-
-
-{-# INLINE runAfIO #-}
-runAfIO :: forall a. Af '[IOE] a -> IO a
-runAfIO af = GHC.IO (runAf# af)
-
-
-{-# INLINE runAfST #-}
-runAfST :: forall st a. Af '[STE st] a -> ST st a
-runAfST af = ST (runAf# af)
-
-
-{-# INLINE evalAfST #-}
-evalAfST :: forall a. (forall st. Af '[STE st] a) -> a
-evalAfST af = runST (runAfST af)
-
-
-{-# INLINE runAfSTIO #-}
-runAfSTIO :: forall a. (forall st. Af '[STE st, IOE] a) -> IO a
-runAfSTIO af = GHC.IO (runAf# af)
+{-# INLINE pureAf #-}
+pureAf :: forall a. Af '[] a -> a
+pureAf af = case GHC.runRW# (runAf# af) of (# _, a #) -> a
 
 
 {-# INLINE meetEffect #-}

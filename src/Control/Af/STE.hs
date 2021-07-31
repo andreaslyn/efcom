@@ -4,6 +4,8 @@ module Control.Af.STE
 
 import Control.Af.STE.Unsafe
   ( STE
+  , withSTE
+  , runSTE
   , AfEnv (..)
   , AfToST
   , controlST

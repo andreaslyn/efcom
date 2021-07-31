@@ -26,7 +26,8 @@ source-repository head
 library
   exposed-modules:
       Control.Af
-      Control.Af.ExceptE
+      Control.Af.Cell
+      Control.Af.Error
       Control.Af.Internal.Af
       Control.Af.Internal.AfArray
       Control.Af.Internal.Effect
@@ -34,9 +35,12 @@ library
       Control.Af.Internal.Util
       Control.Af.IOE
       Control.Af.IOE.Unsafe
-      Control.Af.StateE
+      Control.Af.Reader
+      Control.Af.Shortcut
+      Control.Af.State
       Control.Af.STE
       Control.Af.STE.Unsafe
+      Control.Af.Writer
   other-modules:
       Paths_af
   hs-source-dirs:
@@ -88,7 +92,7 @@ executable af-exe
       MagicHash
       UnboxedTuples
       UnboxedSums
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2
   build-depends:
       af
     , array
@@ -121,11 +125,47 @@ test-suite af-test
       MagicHash
       UnboxedTuples
       UnboxedSums
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2
   build-depends:
       af
     , array
     , base >=4.7 && <5
+    , mtl
+    , transformers
+  default-language: Haskell2010
+
+benchmark atl-bench
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  other-modules:
+      Af.ReadWriteNoError
+      MTL.ReadWriteNoError
+      Paths_af
+  hs-source-dirs:
+      bench
+  default-extensions:
+      BangPatterns
+      TypeFamilies
+      ScopedTypeVariables
+      ConstraintKinds
+      DataKinds
+      TypeApplications
+      TypeOperators
+      RankNTypes
+      KindSignatures
+      InstanceSigs
+      MultiParamTypeClasses
+      FlexibleInstances
+      FlexibleContexts
+      MagicHash
+      UnboxedTuples
+      UnboxedSums
+  ghc-options: -rtsopts -threaded -with-rtsopts=-N -O2 -fspecialise-aggressively
+  build-depends:
+      af
+    , array
+    , base >=4.7 && <5
+    , criterion
     , mtl
     , transformers
   default-language: Haskell2010

@@ -4,8 +4,8 @@ module Control.Af.Internal.Effect
   , MeetEffect
   , IOE
   , STE
-  , StateE
-  , ExceptE
+  , Cell
+  , Shortcut
   ) where
 
 
@@ -33,6 +33,6 @@ data IOE :: *
 
 data STE (st :: *) :: *
 
-data StateE (state :: *) (tag :: *) :: *
+data Cell (cell :: *) (ref :: *) :: *
 
-data ExceptE (except :: *) (tag :: *) :: *
+data Shortcut (shortcut :: *) (ref :: *) :: *
