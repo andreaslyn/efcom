@@ -6,12 +6,16 @@ module Control.Af.Cell
   , scopeCell
   , readCell
   , writeCell
+  , lazyWriteCell
   ) where
 
 import Control.Af.Internal.Effect
 import Control.Af.Internal.AfArray
+import Control.Af.Internal.Util
 import Control.Af.Internal.Af
 import Control.Af.Internal.In
+
+import qualified GHC.Exts as GHC
 
 
 {-# INLINE runCell #-}
@@ -23,6 +27,7 @@ runCell ::
                            -- cell state of the effect computation.
   Af efs b
 runCell af ce k = Af $ \ sz ar0 s0 ->
+  -- TODO check that sz is < maxBound @Int16
   case appendAfArray sz ar0 ce s0 of
     (# ar1, s1, sz' #) ->
       case unAf af sz' ar1 s1 of
@@ -53,34 +58,46 @@ scopeCell ::
                            -- is restored to that before scopeCell.
   Af efs b
 scopeCell af ce k g = Af $ \ sz ar0 s0 ->
-  let ix = cellIndex @(Cell ce ref) @efs sz in
-  case readAfArray ar0 ix s0 of
+  let di = shortcutDepthCellIndex @(Cell ce ref) @efs sz in
+  case readAfArray ar0 (cellIndex di) s0 of
     (# s1, orig #) ->
-      let s2 = writeAfArray ar0 ix ce s1 in
+      let s2 = writeAfArray ar0 (cellIndex di) ce s1 in
       case unAf af sz ar0 s2 of
         (# ar1, s3, (# e | #) #) ->
-          case readAfArray ar1 ix s3 of
-            (# s4, ce' #) ->
-              let s5 = writeAfArray ar1 ix orig s4
-                  !(# ar2, s6, _ #) = unAf (g ce') sz ar1 s5
-              in (# ar2, s6, (# e | #) #)
+           let !(# s4, c #) = readAfArray @Int ar1 0# s3 in
+           case unI# c GHC.<=# shortcutDepth di of
+            1# -> -- Internal escape.
+              let !(# s5, ce' #) = readAfArray ar1 (cellIndex di) s4
+                  s6 = writeAfArray ar1 (cellIndex di) orig s5
+                  !(# ar2, s7, _ #) = unAf (g ce') sz ar1 s6
+              in (# ar2, s7, (# e | #) #)
+            _ ->  -- External escape.
+              let s5 = writeAfArray ar1 (cellIndex di) orig s4
+              in (# ar1, s5, (# e | #) #)
         (# ar1, s3, (# | a #) #) ->
-          case readAfArray ar1 ix s3 of
+          case readAfArray ar1 (cellIndex di) s3 of
             (# s4, ce' #) ->
-              let s5 = writeAfArray ar1 ix orig s4
+              let s5 = writeAfArray ar1 (cellIndex di) orig s4
               in unAf (k a ce') sz ar1 s5
+
+
+{-# INLINE lazyWriteCell #-}
+lazyWriteCell :: forall ref ce efs. In (Cell ce ref) efs => ce -> Af efs ()
+lazyWriteCell ce = Af $ \ sz ar s ->
+  let di = shortcutDepthCellIndex @(Cell ce ref) @efs sz
+  in (# ar, writeAfArray ar (cellIndex di) ce s, (# | () #) #)
 
 
 {-# INLINE writeCell #-}
 writeCell :: forall ref ce efs. In (Cell ce ref) efs => ce -> Af efs ()
 writeCell !ce = Af $ \ sz ar s ->
-  let i = cellIndex @(Cell ce ref) @efs sz
-  in (# ar, writeAfArray ar i ce s, (# | () #) #)
+  let di = shortcutDepthCellIndex @(Cell ce ref) @efs sz
+  in (# ar, writeAfArray ar (cellIndex di) ce s, (# | () #) #)
 
 
 {-# INLINE readCell #-}
 readCell :: forall ref ce efs. In (Cell ce ref) efs => Af efs ce
 readCell = Af $ \ sz ar s ->
-  let i = cellIndex @(Cell ce ref) @efs sz
-  in case readAfArray ar i s of
+  let di = shortcutDepthCellIndex @(Cell ce ref) @efs sz
+  in case readAfArray ar (cellIndex di) s of
       (# s', ce #) -> (# ar, s', (# | ce #) #)

@@ -1,5 +1,12 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE CPP #-}
+
+#include <MachDeps.h>
+
+#if WORD_SIZE_IN_BITS < 32
+#error "unexpected word size in bits < 32"
+#endif
 
 module Control.Af.Internal.In
   ( IsIn (..)
@@ -11,85 +18,113 @@ module Control.Af.Internal.In
 
 import Control.Af.Internal.Effect
 
-import GHC.Exts (Int#, (-#))
+import GHC.Exts
+  ( Int#
+  , (-#)
+  , (+#)
+  , (>#)
+  , inline
+  )
+import qualified GHC.Exts as GHC
 
 import Data.Kind (Constraint)
 
 
-class IsIn (e :: *) (es :: [*]) where
-  shortcutDepthCellIndex :: Int# -> (# Int, Int# #)
+class IsIn (e :: *) (efs :: [*]) where
+  shortcutDepthCellIndex :: Int# -> Int#
+
+
+maxEffects :: () -> Int#
+maxEffects _ = 32767#
+
+
+cellIndexShift :: () -> Int#
+cellIndexShift _ = 16#
+
+
+shortcutDepthMask :: () -> Int#
+shortcutDepthMask _ = 0xFF#
+
+
+makeDepthIndex :: Int# -> Int# -> Int#
+makeDepthIndex d i =
+  case d ># inline maxEffects () of
+    1# -> error "crossed maximal number of escape effects"
+    _ ->
+      case i ># inline maxEffects () of
+        1# -> error "crossed maximal number of cell effects"
+        _ -> GHC.orI# d (GHC.uncheckedIShiftL# i (inline cellIndexShift ()))
 
 
 {-# INLINE shortcutDepth #-}
-shortcutDepth :: forall e es. IsIn e es => Int
-shortcutDepth = let !(# i, _ #) = shortcutDepthCellIndex @e @es 0# in i
+shortcutDepth :: Int# -> Int#
+shortcutDepth i = GHC.andI# i (inline shortcutDepthMask ())
 
 
 {-# INLINE cellIndex #-}
-cellIndex :: forall e es. IsIn e es => Int# -> Int#
-cellIndex sz = let !(# _, i #) = shortcutDepthCellIndex @e @es sz in i
+cellIndex :: Int# -> Int#
+cellIndex i = GHC.uncheckedIShiftRL# i (inline cellIndexShift ())
 
 
-instance IsIn (Cell ce e) (Cell ce e : es) where
+instance IsIn (Cell ce ref) (Cell ce ref : efs) where
   {-# INLINE shortcutDepthCellIndex #-}
-  shortcutDepthCellIndex sz =
-    (# error "shortcutDepth of Cell is undefined", sz -# 1# #)
+  shortcutDepthCellIndex sz = inline makeDepthIndex 0# (sz -# 1#)
 
 
-instance IsIn IOE (IOE : es) where
+instance IsIn IOE (IOE : efs) where
   {-# INLINE shortcutDepthCellIndex #-}
-  shortcutDepthCellIndex sz =
-    (# error "shortcutDepth of IOE is undefined", sz #)
+  shortcutDepthCellIndex sz = inline makeDepthIndex 0# sz
 
 
-instance IsIn (STE st) (STE st : es) where
+instance IsIn (STE st) (STE st : efs) where
   {-# INLINE shortcutDepthCellIndex #-}
-  shortcutDepthCellIndex sz =
-    (# error "shortcutDepth of STE is undefined", sz #)
+  shortcutDepthCellIndex sz = inline makeDepthIndex 0# sz
 
 
-instance IsIn (Shortcut sh e) (Shortcut sh e : es) where
+instance IsIn (Escape ex ref) (Escape ex ref : efs) where
   {-# INLINE shortcutDepthCellIndex #-}
-  shortcutDepthCellIndex sz = (# 0, sz #)
+  shortcutDepthCellIndex sz = inline makeDepthIndex 1# sz
 
 
-instance {-# OVERLAPPABLE #-} IsIn e (MeetEffect d es) => IsIn e (d : es)
+instance {-# OVERLAPPABLE #-} IsIn e (MeetEffect d efs) => IsIn e (d : efs)
   where
   {-# INLINE shortcutDepthCellIndex #-}
-  shortcutDepthCellIndex = shortcutDepthCellIndex @e @(MeetEffect d es)
+  shortcutDepthCellIndex = shortcutDepthCellIndex @e @(MeetEffect d efs)
 
 
-instance {-# OVERLAPPABLE #-} IsIn e es => IsIn e (Cell ce d : es) where
+instance {-# OVERLAPPABLE #-} IsIn e efs => IsIn e (Cell ce d : efs) where
   {-# INLINE shortcutDepthCellIndex #-}
   shortcutDepthCellIndex sz =
-    let !(# e, s #) = shortcutDepthCellIndex @e @es sz in (# e, s -# 1# #)
+    let i = shortcutDepthCellIndex @e @efs sz
+    in inline makeDepthIndex (shortcutDepth i) (cellIndex i -# 1#)
 
 
-instance {-# OVERLAPPABLE #-} IsIn e es => IsIn e (IOE : es) where
+instance {-# OVERLAPPABLE #-} IsIn e efs => IsIn e (IOE : efs) where
   {-# INLINE shortcutDepthCellIndex #-}
-  shortcutDepthCellIndex = shortcutDepthCellIndex @e @es
+  shortcutDepthCellIndex = shortcutDepthCellIndex @e @efs
 
 
-instance {-# OVERLAPPABLE #-} IsIn e es => IsIn e (STE st : es) where
+instance {-# OVERLAPPABLE #-} IsIn e efs => IsIn e (STE st : efs) where
   {-# INLINE shortcutDepthCellIndex #-}
-  shortcutDepthCellIndex = shortcutDepthCellIndex @e @es
+  shortcutDepthCellIndex = shortcutDepthCellIndex @e @efs
 
 
-instance {-# OVERLAPPABLE #-} IsIn e es => IsIn e (Shortcut sh d : es) where
+instance {-# OVERLAPPABLE #-} IsIn e efs => IsIn e (Escape ex ref : efs) where
   {-# INLINE shortcutDepthCellIndex #-}
   shortcutDepthCellIndex sz =
-    let !(# e, s #) = shortcutDepthCellIndex @e @es sz in (# 1 + e, s #)
+    let i = shortcutDepthCellIndex @e @efs sz
+    in inline makeDepthIndex (shortcutDepth i +# 1#) (cellIndex i)
 
 
-type family In (e :: *) (es :: [*]) where
-  In IOE es = IsIn IOE es
-  In (STE st) es = IsIn (STE st) es
-  In (Cell ce i) es = IsIn (Cell ce i) es
-  In (Shortcut sh i) es = IsIn (Shortcut sh i) es
-  In e es = AllIn (ApplyEffect e) es
+type family In (e :: *) (efs :: [*]) where
+  In IOE efs = IsIn IOE efs
+  In (STE st) efs = IsIn (STE st) efs
+  In (Cell ce i) efs = IsIn (Cell ce i) efs
+  In (Escape ex i) efs = IsIn (Escape ex i) efs
+  In e efs = AllIn (ApplyEffect e) efs
 
 
-type family AllIn (ds :: [*]) (es :: [*]) :: Constraint where
-  AllIn '[] es = ()
-  AllIn '[d] es = In d es
-  AllIn (d : ds) es = (In d es, AllIn ds es)
+type family AllIn (ds :: [*]) (efs :: [*]) :: Constraint where
+  AllIn '[] efs = ()
+  AllIn '[d] efs = In d efs
+  AllIn (d : ds) efs = (In d efs, AllIn ds efs)

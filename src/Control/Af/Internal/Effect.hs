@@ -5,7 +5,7 @@ module Control.Af.Internal.Effect
   , IOE
   , STE
   , Cell
-  , Shortcut
+  , Escape
   ) where
 
 
@@ -35,4 +35,4 @@ data STE (st :: *) :: *
 
 data Cell (cell :: *) (ref :: *) :: *
 
-data Shortcut (shortcut :: *) (ref :: *) :: *
+data Escape (escape :: *) (ref :: *) :: *

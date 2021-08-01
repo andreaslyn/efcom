@@ -37,6 +37,7 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     - -O2
+    - -fspecialise-aggressively
     dependencies:
     - af
 

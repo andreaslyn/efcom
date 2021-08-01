@@ -2,7 +2,7 @@ module Main where
 
 import Control.Af
 import Control.Af.Cell
-import Control.Af.Shortcut
+import Control.Af.Escape
 import Control.Af.STE
 import Control.Af.IOE
 
@@ -22,7 +22,7 @@ catchClause ::
   AllIn
   '[Cell Bool Composite
   , Cell Int (OtherState Composite)
-  , Shortcut String ()] es =>
+  , Escape String ()] es =>
   String -> Af es (Int, Int)
 catchClause _ = do
   !x <- readCell @(OtherState Composite)
@@ -53,17 +53,17 @@ unComposite = meetEffect
 {-# NOINLINE testLoop #-}
 testLoop ::
   forall st es.
-  AllIn '[Composite, Shortcut String (), STE st] es =>
+  AllIn '[Composite, Escape String (), STE st] es =>
   STRef st Int -> Int -> Af es (Int, Int)
 testLoop r 0 = do
   x <- readCell @(OtherState Composite) @Int
   y <- readCell @Composite
   !z <- liftST (readSTRef r)
   if x < 0
-  then takeShortcut @() "fail!"
+  then takeEscape @() "fail!"
   else return $ if y then (z + 1, x + 1) else (z, x)
 testLoop r i = do
-  scopeShortcut @() @String (do
+  scopeEscape @() @String (do
       x <- readCell @(OtherState Composite) @Int
       y <- readCell @Composite @Bool
       !z <- liftST (readSTRef r)
@@ -105,7 +105,7 @@ globalWriterListen = do
 
 
 loopWithST ::
-  forall st. Af '[Shortcut String (), STE st, IOE] (((Int, Int), Bool), Int)
+  forall st. Af '[Escape String (), STE st, IOE] (((Int, Int), Bool), Int)
 loopWithST = do
   r <- liftST @st (newSTRef (0 :: Int))
   (runCell @(OtherState Composite)
@@ -120,12 +120,12 @@ main :: IO ()
 main = do
   x <- withIOERunSTE $ do
     liftIO (putStrLn "hello 1")
-    runShortcut @() @String loopWithST
+    runEscape @() @String loopWithST
       (return . Right) (return . Left)
   print x
 {-
   print $ pureAf $
-    (runShortcut @() @String
+    (runEscape @() @String
       (runCell @(OtherState Composite)
         (runCell @Composite
           (runCell @(OtherState Composite)

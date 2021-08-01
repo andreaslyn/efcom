@@ -5,8 +5,9 @@ module Control.Af.State
   , execState
   , get
   , put
-  , state
+  , lazyPut
   , modify
+  , lazyModify
   ) where
 
 import Control.Af
@@ -46,16 +47,16 @@ put :: forall s efs. In (State s) efs => s -> Af efs ()
 put = writeCell @(State s)
 
 
-{-# INLINE state #-}
-state :: forall s efs a. In (State s) efs => (s -> (a, s)) -> Af efs a
-state f = do
-  s <- get
-  let (a, s') = f s
-  put s'
-  return a
-
+{-# INLINE lazyPut #-}
+lazyPut :: forall s efs. In (State s) efs => s -> Af efs ()
+lazyPut = lazyWriteCell @(State s)
 
 
 {-# INLINE modify #-}
 modify :: forall s efs. In (State s) efs => (s -> s) -> Af efs ()
 modify f = get >>= put . f
+
+
+{-# INLINE lazyModify #-}
+lazyModify :: forall s efs. In (State s) efs => (s -> s) -> Af efs ()
+lazyModify f = get >>= lazyPut . f

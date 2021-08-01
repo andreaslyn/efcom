@@ -28,6 +28,7 @@ library
       Control.Af
       Control.Af.Cell
       Control.Af.Error
+      Control.Af.Escape
       Control.Af.Internal.Af
       Control.Af.Internal.AfArray
       Control.Af.Internal.Effect
@@ -36,7 +37,6 @@ library
       Control.Af.IOE
       Control.Af.IOE.Unsafe
       Control.Af.Reader
-      Control.Af.Shortcut
       Control.Af.State
       Control.Af.STE
       Control.Af.STE.Unsafe
@@ -92,7 +92,7 @@ executable af-exe
       MagicHash
       UnboxedTuples
       UnboxedSums
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2 -fspecialise-aggressively
   build-depends:
       af
     , array

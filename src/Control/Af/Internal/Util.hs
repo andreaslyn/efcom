@@ -1,11 +1,17 @@
 module Control.Af.Internal.Util
-  ( unsafeCoerceState
+  ( unI#
+  , unsafeCoerceState
   , unsafeCoerceAfArray
   ) where
 
 import Control.Af.Internal.AfArray
 
-import GHC.Exts (State#, unsafeCoerce#)
+import GHC.Exts (Int#, Int (..), State#, unsafeCoerce#)
+
+
+{-# INLINE unI# #-}
+unI# :: Int -> Int#
+unI# (I# i) = i
 
 
 {-# INLINE unsafeCoerceState #-}

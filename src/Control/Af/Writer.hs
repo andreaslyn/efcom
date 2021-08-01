@@ -3,7 +3,7 @@ module Control.Af.Writer
   , runWriter
   , execWriter
   , tell
-  , writer
+  , lazyTell
   , listen
   , pass
   , listens
@@ -42,10 +42,11 @@ tell w = do
   writeCell @(Writer w) (mappend w0 w)
 
 
-{-# INLINE writer #-}
-writer ::
-  forall w efs a. (Monoid w, In (Writer w) efs) => (a, w) -> Af efs a 
-writer (a, w) = tell w >> return a
+{-# INLINE lazyTell #-}
+lazyTell :: forall w efs. (Monoid w, In (Writer w) efs) => w -> Af efs ()
+lazyTell w = do
+  w0 <- readCell @(Writer w)
+  lazyWriteCell @(Writer w) (mappend w0 w)
 
 
 {-# INLINE listen #-}
@@ -70,15 +71,15 @@ pass af = do
 listens ::
   forall w efs a b. (Monoid w, In (Writer w) efs) =>
   (w -> b) -> Af efs a -> Af efs (a, b)
-listens f m = do
-  (a, w) <- listen m
-  return (a, f w)
+listens f af = do
+  scopeCell @(Writer w) af mempty
+    (\a w -> tell w >> return (a, f w)) tell
 
 
 {-# INLINE censor #-}
 censor ::
   forall w efs a. (Monoid w, In (Writer w) efs) =>
   (w -> w) -> Af efs a -> Af efs a
-censor f m = pass $ do
-  a <- m
-  return (a, f)
+censor f af = 
+  scopeCell @(Writer w) af mempty
+    (\a w -> tell (f w) >> return a) tell
