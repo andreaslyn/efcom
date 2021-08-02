@@ -18,7 +18,7 @@ type instance Effect (Reader r) = '[Cell r]
 {-# INLINE runReader #-}
 runReader :: forall r efs a. Af (Reader r : efs) a -> r -> Af efs a
 runReader af r =
-  runCell @(Reader r) (meetEffect af) r (\a _ -> return a)
+  runCell @(Reader r) (runAfHead af) r (\a _ -> return a)
 
 
 {-# INLINE ask #-}

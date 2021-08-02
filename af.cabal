@@ -26,9 +26,12 @@ source-repository head
 library
   exposed-modules:
       Control.Af
+      Control.Af.Af
       Control.Af.Cell
+      Control.Af.Effect
       Control.Af.Error
       Control.Af.Escape
+      Control.Af.In
       Control.Af.Internal.Af
       Control.Af.Internal.AfArray
       Control.Af.Internal.Effect

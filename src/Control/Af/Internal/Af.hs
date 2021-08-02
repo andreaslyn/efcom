@@ -1,8 +1,8 @@
 module Control.Af.Internal.Af
   ( Af (..)
   , runAf#
-  , pureAf
-  , meetEffect
+  , runAfPure
+  , runAfHead
   ) where
 
 import Control.Af.Internal.I16Pair
@@ -15,8 +15,7 @@ import qualified GHC.Exts as GHC
 import Unsafe.Coerce (unsafeCoerce)
 
 
-newtype Af (es :: [*]) (a :: *) =
-  Af
+newtype Af (es :: [*]) (a :: *) = Af
   { unAf ::
       forall s.
       I16Pair -> AfArray s -> State# s ->
@@ -71,11 +70,11 @@ runAf# af s0 =
           (# s2, a #)
 
 
-{-# INLINE pureAf #-}
-pureAf :: forall a. Af '[] a -> a
-pureAf af = case GHC.runRW# (runAf# af) of (# _, a #) -> a
+{-# INLINE runAfPure #-}
+runAfPure :: forall a. Af '[] a -> a
+runAfPure af = case GHC.runRW# (runAf# af) of (# _, a #) -> a
 
 
-{-# INLINE meetEffect #-}
-meetEffect :: forall e es a. Af (e : es) a -> Af (MeetEffect e es) a
-meetEffect = unsafeCoerce
+{-# INLINE runAfHead #-}
+runAfHead :: forall e es a. Af (e : es) a -> Af (Effects e ++ es) a
+runAfHead = unsafeCoerce

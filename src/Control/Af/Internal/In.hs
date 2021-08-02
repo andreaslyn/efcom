@@ -1,12 +1,5 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE CPP #-}
-
-#include <MachDeps.h>
-
-#if WORD_SIZE_IN_BITS < 32
-#error "unexpected word size in bits < 32"
-#endif
 
 module Control.Af.Internal.In
   ( IsIn (..)
@@ -64,10 +57,10 @@ instance IsIn (Escape ex ref) (Escape ex ref : efs) where
   isInEscapeCellPair sz = makeI16Pair sz 1#
 
 
-instance {-# OVERLAPPABLE #-} IsIn e (MeetEffect d efs) => IsIn e (d : efs)
+instance {-# OVERLAPPABLE #-} IsIn e (Effects d ++ efs) => IsIn e (d : efs)
   where
   {-# INLINE isInEscapeCellPair #-}
-  isInEscapeCellPair = isInEscapeCellPair @e @(MeetEffect d efs)
+  isInEscapeCellPair = isInEscapeCellPair @e @(Effects d ++ efs)
 
 
 instance {-# OVERLAPPABLE #-} IsIn e efs => IsIn e (Cell ce d : efs) where
@@ -97,7 +90,7 @@ type family In (e :: *) (efs :: [*]) where
   In (STE st) efs = IsIn (STE st) efs
   In (Cell ce i) efs = IsIn (Cell ce i) efs
   In (Escape ex i) efs = IsIn (Escape ex i) efs
-  In e efs = AllIn (ApplyEffect e) efs
+  In e efs = AllIn (Effects e) efs
 
 
 type family AllIn (ds :: [*]) (efs :: [*]) :: Constraint where

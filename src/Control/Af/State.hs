@@ -22,19 +22,19 @@ type instance Effect (State s) = '[Cell s]
 {-# INLINE runState #-}
 runState :: forall s efs a. Af (State s : efs) a -> s -> Af efs (a, s)
 runState af s =
-  runCell @(State s) (meetEffect af) s (\a s' -> return (a, s'))
+  runCell @(State s) (runAfHead af) s (\a s' -> return (a, s'))
 
 
 {-# INLINE evalState #-}
 evalState :: forall s efs a. Af (State s : efs) a -> s -> Af efs a
 evalState af s =
-  runCell @(State s) (meetEffect af) s (\a _ -> return a)
+  runCell @(State s) (runAfHead af) s (\a _ -> return a)
 
 
 {-# INLINE execState #-}
 execState :: forall s efs a. Af (State s : efs) a -> s -> Af efs s
 execState af s =
-  runCell @(State s) (meetEffect af) s (\_ s' -> return s')
+  runCell @(State s) (runAfHead af) s (\_ s' -> return s')
 
 
 {-# INLINE get #-}

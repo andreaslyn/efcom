@@ -24,7 +24,7 @@ runWriter ::
   forall w efs a. Monoid w =>
   Af (Writer w : efs) a -> Af efs (a, w)
 runWriter af =
-  runCell @(Writer w) (meetEffect af) mempty (\a w -> return (a, w))
+  runCell @(Writer w) (runAfHead af) mempty (\a w -> return (a, w))
 
 
 {-# INLINE execWriter #-}
@@ -32,7 +32,7 @@ execWriter ::
   forall w efs a. Monoid w =>
   Af (Writer w : efs) a -> Af efs w
 execWriter af =
-  runCell @(Writer w) (meetEffect af) mempty (\_ w -> return w)
+  runCell @(Writer w) (runAfHead af) mempty (\_ w -> return w)
 
 
 {-# INLINE tell #-}

@@ -1,22 +1,21 @@
 module Control.Af
-  ( module Control.Af.Internal.Af
-  , module Control.Af.Internal.Effect
-  , module Control.Af.Internal.In
+  ( module Control.Af.Af
+  , module Control.Af.Effect
+  , module Control.Af.In
   ) where
 
-import Control.Af.Internal.Af
+import Control.Af.Af
   ( Af
-  , pureAf
-  , meetEffect
+  , runAfPure
+  , runAfHead
   )
 
-import Control.Af.Internal.Effect
+import Control.Af.Effect
   ( Effect
-  , ApplyEffect
-  , MeetEffect
+  , Effects
   )
 
-import Control.Af.Internal.In
+import Control.Af.In
   ( IsIn
   , In
   , AllIn

@@ -36,8 +36,8 @@ type instance Effect (OtherState i) = '[Cell Int]
 
 unOtherState ::
   forall i es a.
-  Af (OtherState i : es) a -> Af (MeetEffect (OtherState i) es) a
-unOtherState = meetEffect
+  Af (OtherState i : es) a -> Af (Cell Int (OtherState i) : es) a
+unOtherState = runAfHead
 
 
 data Composite
@@ -46,8 +46,8 @@ type instance Effect Composite = '[Cell Bool, OtherState]
 
 unComposite ::
   forall es a.
-  Af (Composite : es) a -> Af (MeetEffect Composite es) a
-unComposite = meetEffect
+  Af (Composite : es) a -> Af (Cell Bool Composite : OtherState Composite : es) a
+unComposite = runAfHead
 
 
 {-# NOINLINE testLoop #-}

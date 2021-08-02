@@ -1,3 +1,11 @@
+{-# LANGUAGE CPP #-}
+
+#include <MachDeps.h>
+
+#if WORD_SIZE_IN_BITS < 32
+#error "unexpected word size in bits < 32"
+#endif
+
 module Control.Af.Internal.I16Pair
   ( I16Pair (..)
   , maxI16PairValue

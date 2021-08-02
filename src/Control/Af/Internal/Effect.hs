@@ -1,7 +1,7 @@
 module Control.Af.Internal.Effect
   ( Effect
-  , ApplyEffect
-  , MeetEffect
+  , Effects
+  , type (++)
   , IOE
   , STE
   , Cell
@@ -12,11 +12,7 @@ module Control.Af.Internal.Effect
 type family Effect (e :: *) :: [* -> *]
 
 
-type ApplyEffect (e :: *) = ApplyAll (Effect e) e
-
-
-type MeetEffect (e :: *) (es :: [*])
-  = Append (ApplyEffect e) es
+type Effects (e :: *) = ApplyAll (Effect e) e
 
 
 type family ApplyAll (fs :: [* -> *]) (x :: *) :: [*] where
@@ -24,9 +20,9 @@ type family ApplyAll (fs :: [* -> *]) (x :: *) :: [*] where
   ApplyAll (f : fs) x = f x : ApplyAll fs x
 
 
-type family Append (ds :: [*]) (es :: [*]) :: [*] where
-  Append '[] es = es
-  Append (d : ds) es = d : Append ds es
+type family (ds :: [*]) ++ (es :: [*]) :: [*] where
+  '[] ++ es = es
+  (d : ds) ++ es = d : ds ++ es
 
 
 data IOE :: *

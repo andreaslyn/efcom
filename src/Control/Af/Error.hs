@@ -17,7 +17,7 @@ type instance Effect (Error e) = '[Escape e]
 {-# INLINE runError #-}
 runError :: forall e efs a. Af (Error e : efs) a -> Af efs (Either e a)
 runError af =
-  runEscape @(Error e) (meetEffect af) (return . Right) (return . Left)
+  runEscape @(Error e) (runAfHead af) (return . Right) (return . Left)
 
 
 {-# INLINE throwError #-}
