@@ -5,14 +5,11 @@ module Control.Af.Internal.Af
   , meetEffect
   ) where
 
+import Control.Af.Internal.I16Pair
 import Control.Af.Internal.Effect
 import Control.Af.Internal.AfArray
 
-import GHC.Exts
-  ( Any
-  , State#
-  , Int#
-  )
+import GHC.Exts (Any, State#)
 import qualified GHC.Exts as GHC
 
 import Unsafe.Coerce (unsafeCoerce)
@@ -22,7 +19,7 @@ newtype Af (es :: [*]) (a :: *) =
   Af
   { unAf ::
       forall s.
-      Int# -> AfArray s -> State# s ->
+      I16Pair -> AfArray s -> State# s ->
       (# AfArray s, State# s, (# Any | a #) #)
   }
 
@@ -67,9 +64,9 @@ runAf# :: forall es a s. Af es a -> State# s -> (# State# s, a #)
 runAf# af s0 =
   case initialAfArray s0 of
     (# s1, ar #) ->
-      case unAf af 1# ar s1 of
+      case unAf af (makeI16Pair 1# 0#) ar s1 of
         (# _, s2, (# _ | #) #) ->
-          (# s2, error "Af exception unexpectedly escaped" #)
+          (# s2, error "unhandled Af escape effect" #)
         (# _, s2, (# | a #) #) ->
           (# s2, a #)
 

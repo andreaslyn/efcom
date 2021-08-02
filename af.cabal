@@ -32,6 +32,7 @@ library
       Control.Af.Internal.Af
       Control.Af.Internal.AfArray
       Control.Af.Internal.Effect
+      Control.Af.Internal.I16Pair
       Control.Af.Internal.In
       Control.Af.Internal.Util
       Control.Af.IOE
@@ -62,6 +63,7 @@ library
       MagicHash
       UnboxedTuples
       UnboxedSums
+      UnliftedNewtypes
   build-depends:
       array
     , base >=4.7 && <5
@@ -92,7 +94,8 @@ executable af-exe
       MagicHash
       UnboxedTuples
       UnboxedSums
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2 -fspecialise-aggressively
+      UnliftedNewtypes
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2 -fspec-constr-keen -fdicts-strict
   build-depends:
       af
     , array
@@ -125,7 +128,8 @@ test-suite af-test
       MagicHash
       UnboxedTuples
       UnboxedSums
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2
+      UnliftedNewtypes
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2 -fspec-constr-keen -fdicts-strict
   build-depends:
       af
     , array
@@ -160,7 +164,8 @@ benchmark atl-bench
       MagicHash
       UnboxedTuples
       UnboxedSums
-  ghc-options: -rtsopts -threaded -with-rtsopts=-N -O2 -fspecialise-aggressively
+      UnliftedNewtypes
+  ghc-options: -rtsopts -threaded -with-rtsopts=-N -O2 -fspec-constr-keen -fdicts-strict
   build-depends:
       af
     , array

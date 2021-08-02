@@ -1,5 +1,6 @@
 module Control.Af.Internal.AfArray
   ( AfArray
+  , unsafeCoerceAfArray
   , undefinedElementAfArray
   , newAfArray
   , capacityAfArray
@@ -13,19 +14,25 @@ module Control.Af.Internal.AfArray
   , copyToAfArray
   ) where
 
+import Control.Af.Internal.I16Pair
+
 import GHC.Exts
   ( Any
   , State#
   , Int#
   , (+#)
   , (<#)
+  , unsafeCoerce#
   )
 import qualified GHC.Exts as GHC
 
-import Unsafe.Coerce (unsafeCoerce)
-
 
 type AfArray (s :: *) = GHC.MutableArray# s Any
+
+
+{-# INLINE unsafeCoerceAfArray #-}
+unsafeCoerceAfArray :: forall s t. AfArray s -> AfArray t
+unsafeCoerceAfArray = unsafeCoerce#
 
 
 {-# NOINLINE undefinedElementAfArray #-}
@@ -46,13 +53,13 @@ capacityAfArray = GHC.sizeofMutableArray#
 {-# INLINE writeAfArray #-}
 writeAfArray ::
   forall a s. AfArray s -> Int# -> a -> State# s -> State# s
-writeAfArray ar i a s = GHC.writeArray# ar i (unsafeCoerce a) s
+writeAfArray ar i a s = GHC.writeArray# ar i (unsafeCoerce# a) s
 
 
 {-# INLINE writeStrictAfArray #-}
 writeStrictAfArray ::
   forall a s. AfArray s -> Int# -> a -> State# s -> State# s
-writeStrictAfArray ar i !a s = GHC.writeArray# ar i (unsafeCoerce a) s
+writeStrictAfArray ar i !a s = GHC.writeArray# ar i (unsafeCoerce# a) s
 
 
 {-# INLINE readAfArray #-}
@@ -60,7 +67,7 @@ readAfArray ::
   forall a s. AfArray s -> Int# -> State# s -> (# State# s, a #)
 readAfArray ar i s =
   case GHC.readArray# ar i s of
-    (# s', a #) -> (# s', unsafeCoerce a #)
+    (# s', a #) -> (# s', unsafeCoerce# a #)
 
 
 {-# INLINE doubleAfArray #-}
@@ -78,13 +85,16 @@ doubleAfArray ar s =
 {-# INLINE appendAfArray #-}
 appendAfArray ::
   forall a s.
-  Int# -> AfArray s -> a -> State# s -> (# AfArray s, State# s, Int# #)
-appendAfArray sz ar a s = do
-  case sz GHC.<# capacityAfArray ar of
-    1# -> (# ar, writeAfArray ar sz a s, sz +# 1# #)
+  I16Pair -> AfArray s -> a -> State# s -> (# AfArray s, State# s, I16Pair #)
+appendAfArray sz ar a s =
+  let i = fstI16Pair sz in
+  case i GHC.<# capacityAfArray ar of
+    1# ->
+      (# ar, writeAfArray ar i a s, addToFstI16Pair sz 1# #)
     _ ->
       case doubleAfArray ar s of
-        (# s', ar' #) -> (# ar', writeAfArray ar' sz a s', sz +# 1# #)
+        (# s', ar' #) ->
+          (# ar', writeAfArray ar' i a s', addToFstI16Pair sz 1# #)
 
 
 ----------------- Copy between AfArray and CopyBuf -------------------

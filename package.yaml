@@ -37,7 +37,8 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     - -O2
-    - -fspecialise-aggressively
+    - -fspec-constr-keen
+    - -fdicts-strict
     dependencies:
     - af
 
@@ -50,6 +51,8 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     - -O2
+    - -fspec-constr-keen
+    - -fdicts-strict
     dependencies:
     - af
 
@@ -62,7 +65,8 @@ benchmarks:
     - -threaded
     - -with-rtsopts=-N
     - -O2 
-    - -fspecialise-aggressively
+    - -fspec-constr-keen
+    - -fdicts-strict
     dependencies:
     - af
     - mtl
@@ -85,3 +89,4 @@ default-extensions:
   - MagicHash
   - UnboxedTuples
   - UnboxedSums
+  - UnliftedNewtypes

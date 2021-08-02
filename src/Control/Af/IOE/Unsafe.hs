@@ -19,15 +19,13 @@ module Control.Af.IOE.Unsafe
 import Control.Af.Internal.Effect
 import Control.Af.Internal.AfArray
 import Control.Af.Internal.Af
+import Control.Af.Internal.I16Pair
 import Control.Af.Internal.In
 import Control.Af.Internal.Util
 
 import Control.Af.STE.Unsafe
 
-import GHC.Exts
-  ( Any
-  , Int#
-  )
+import GHC.Exts (Any)
 import qualified GHC.Exts as GHC
 import qualified GHC.IO as GHC
 
@@ -61,7 +59,7 @@ type AfToIO es = forall a. Af es a -> IO (AfEnvIO a)
 
 
 {-# INLINE unsafeAfToIO #-}
-unsafeAfToIO :: forall es s. Int# -> AfArray s -> AfToIO es
+unsafeAfToIO :: forall es s. I16Pair -> AfArray s -> AfToIO es
 unsafeAfToIO sz ar = \af -> GHC.IO $ \s ->
   case unAf af sz ar (unsafeCoerceState s) of
     (# ar', s', (# e | #) #) ->

@@ -15,14 +15,11 @@ module Control.Af.STE.Unsafe
 import Control.Af.Internal.Effect
 import Control.Af.Internal.AfArray
 import Control.Af.Internal.Af
+import Control.Af.Internal.I16Pair
 import Control.Af.Internal.In
 import Control.Af.Internal.Util
 
-import GHC.Exts
-  ( Any
-  , State#
-  , Int#
-  )
+import GHC.Exts (Any, State#)
 import GHC.ST (ST (..), runST)
 
 
@@ -60,7 +57,7 @@ type AfToST st es = forall a. Af es a -> ST st (AfEnv st a)
 
 
 {-# INLINE unsafeAfToST #-}
-unsafeAfToST :: forall s st es. Int# -> AfArray s -> AfToST st es
+unsafeAfToST :: forall s st es. I16Pair -> AfArray s -> AfToST st es
 unsafeAfToST sz ar = \af -> ST $ \s ->
   case unAf af sz ar (unsafeCoerceState s) of
     (# ar', s', (# e | #) #) ->

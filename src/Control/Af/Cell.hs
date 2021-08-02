@@ -12,10 +12,35 @@ module Control.Af.Cell
 import Control.Af.Internal.Effect
 import Control.Af.Internal.AfArray
 import Control.Af.Internal.Util
+import Control.Af.Internal.I16Pair
 import Control.Af.Internal.Af
 import Control.Af.Internal.In
 
 import qualified GHC.Exts as GHC
+
+
+{-# INLINE doRunCell #-}
+doRunCell ::
+  forall ref ce efs a b.
+  Af (Cell ce ref : efs) a -> -- Effect computation to execute.
+  ce ->                       -- The initial cell state.
+  (a -> ce -> Af efs b) -> -- Action called with result and final
+                           -- cell state of the effect computation.
+  Af efs b
+doRunCell af ce k = Af $ \ sz ar0 s0 ->
+  case appendAfArray sz ar0 ce s0 of
+    (# ar1, s1, sz' #) ->
+      case unAf af sz' ar1 s1 of
+        (# ar2, s2, (# e | #) #) ->
+          let i = fstI16Pair sz
+              s3 = writeAfArray ar2 i undefinedElementAfArray s2
+          in (# ar2, s3, (# e | #) #)
+        (# ar2, s2, (# | a #) #) ->
+          let i = fstI16Pair sz in
+          case readAfArray ar2 i s2 of
+            (# s3, ce' #) ->
+              let s4 = writeAfArray ar2 i undefinedElementAfArray s3
+              in unAf (k a ce') sz ar2 s4
 
 
 {-# INLINE runCell #-}
@@ -26,18 +51,10 @@ runCell ::
   (a -> ce -> Af efs b) -> -- Action called with result and final
                            -- cell state of the effect computation.
   Af efs b
-runCell af ce k = Af $ \ sz ar0 s0 ->
-  -- TODO check that sz is < maxBound @Int16
-  case appendAfArray sz ar0 ce s0 of
-    (# ar1, s1, sz' #) ->
-      case unAf af sz' ar1 s1 of
-        (# ar2, s2, (# e | #) #) ->
-          (# ar2, writeAfArray ar2 sz undefinedElementAfArray s2, (# e | #) #)
-        (# ar2, s2, (# | a #) #) ->
-          case readAfArray ar2 sz s2 of
-            (# s3, ce' #) ->
-              let s4 = writeAfArray ar2 sz undefinedElementAfArray s3
-              in unAf (k a ce') sz ar2 s4
+runCell af ce k = Af $ \ sz ar s ->
+  case isMaxI16PairValue (fstI16Pair sz) of
+    1# -> error "exceeded maximal number of cell effects"
+    _ -> unAf (doRunCell af ce k) sz ar s
 
 
 {-# INLINE scopeCell #-}
@@ -58,14 +75,14 @@ scopeCell ::
                            -- is restored to that before scopeCell.
   Af efs b
 scopeCell af ce k g = Af $ \ sz ar0 s0 ->
-  let di = shortcutDepthCellIndex @(Cell ce ref) @efs sz in
+  let di = escapeDepthCellIndex @(Cell ce ref) @efs sz in
   case readAfArray ar0 (cellIndex di) s0 of
     (# s1, orig #) ->
       let s2 = writeAfArray ar0 (cellIndex di) ce s1 in
       case unAf af sz ar0 s2 of
         (# ar1, s3, (# e | #) #) ->
            let !(# s4, c #) = readAfArray @Int ar1 0# s3 in
-           case unI# c GHC.<=# shortcutDepth di of
+           case unI# c GHC.<=# escapeDepth di of
             1# -> -- Internal escape.
               let !(# s5, ce' #) = readAfArray ar1 (cellIndex di) s4
                   s6 = writeAfArray ar1 (cellIndex di) orig s5
@@ -84,20 +101,20 @@ scopeCell af ce k g = Af $ \ sz ar0 s0 ->
 {-# INLINE lazyWriteCell #-}
 lazyWriteCell :: forall ref ce efs. In (Cell ce ref) efs => ce -> Af efs ()
 lazyWriteCell ce = Af $ \ sz ar s ->
-  let di = shortcutDepthCellIndex @(Cell ce ref) @efs sz
+  let di = escapeDepthCellIndex @(Cell ce ref) @efs sz
   in (# ar, writeAfArray ar (cellIndex di) ce s, (# | () #) #)
 
 
 {-# INLINE writeCell #-}
 writeCell :: forall ref ce efs. In (Cell ce ref) efs => ce -> Af efs ()
 writeCell !ce = Af $ \ sz ar s ->
-  let di = shortcutDepthCellIndex @(Cell ce ref) @efs sz
+  let di = escapeDepthCellIndex @(Cell ce ref) @efs sz
   in (# ar, writeAfArray ar (cellIndex di) ce s, (# | () #) #)
 
 
 {-# INLINE readCell #-}
 readCell :: forall ref ce efs. In (Cell ce ref) efs => Af efs ce
 readCell = Af $ \ sz ar s ->
-  let di = shortcutDepthCellIndex @(Cell ce ref) @efs sz
+  let di = escapeDepthCellIndex @(Cell ce ref) @efs sz
   in case readAfArray ar (cellIndex di) s of
       (# s', ce #) -> (# ar, s', (# | ce #) #)
