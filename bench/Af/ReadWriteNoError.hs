@@ -47,4 +47,4 @@ type ReadWriteNoErrorT =
 {-# NOINLINE runReadWriteNoError #-}
 runReadWriteNoError :: ReadWriteNoErrorT -> Either String (Sum Int)
 runReadWriteNoError comp =
-  pureAf $ runError (execWriter (runReader (evalState comp 0) 1))
+  runAfPure $ runError (execWriter (runReader (evalState comp 0) 1))

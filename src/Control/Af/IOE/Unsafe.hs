@@ -60,7 +60,7 @@ type AfToIO es = forall a. Af es a -> IO (AfEnvIO a)
 
 {-# INLINE unsafeAfToIO #-}
 unsafeAfToIO :: forall es s. I16Pair -> AfArray s -> AfToIO es
-unsafeAfToIO sz ar = \af -> GHC.IO $ \s ->
+unsafeAfToIO sz ar = \ af -> GHC.IO $ \ s ->
   case unAf af sz ar (unsafeCoerceState s) of
     (# ar', s', (# e | #) #) ->
       (# unsafeCoerceState s', unsafeAfEnvIOError ar' e #)

@@ -18,7 +18,7 @@ type instance Effect (Reader r) = '[Cell r]
 {-# INLINE runReader #-}
 runReader :: forall r efs a. Af (Reader r : efs) a -> r -> Af efs a
 runReader af r =
-  runCell @(Reader r) (runAfHead af) r (\a _ -> return a)
+  runCell @(Reader r) (runAfHead af) r (\ a _ -> return a)
 
 
 {-# INLINE ask #-}
@@ -39,4 +39,4 @@ local ::
   (r -> r) -> Af efs a -> Af efs a
 local f af = do
   r <- ask
-  scopeCell @(Reader r) af (f r) (\a _ -> return a) (\_ -> return ())
+  localCell @(Reader r) af (f r) (\ a _ -> return a)

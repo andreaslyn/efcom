@@ -4,7 +4,8 @@ module Control.Af.Escape
   ( Escape
   , runEscape
   , takeEscape
-  , scopeEscape
+  , delimitEscape
+  , catchEscape
   ) where
 
 import Control.Af.Internal.Effect
@@ -28,7 +29,7 @@ doRunEscape ::
   (ex -> Af efs b) ->       -- Action used if shortcut is taken.
   Af efs b
 doRunEscape af f g = Af $ \ sz ar0 s0 ->
-  case unAf af (addToSndI16Pair sz 1#) ar0 s0 of
+  case unAf af (addSndI16Pair sz 1#) ar0 s0 of
     (# ar1, s1, (# e | #) #) ->
       case readAfArray @Int ar1 0# s1 of
         (# s2, i #) ->
@@ -59,23 +60,24 @@ runEscape af f g = Af $ \ sz ar s ->
 {-# INLINE takeEscape #-}
 takeEscape :: forall ref ex efs a. In (Escape ex ref) efs => ex -> Af efs a
 takeEscape ex = Af $ \ sz ar s ->
-  let di = escapeDepthCellIndex @(Escape ex ref) @efs sz
+  let di = cellIndexEscapeDepth @(Escape ex ref) @efs sz
       s' = writeStrictAfArray @Int ar 0# (GHC.I# (escapeDepth di)) s
   in (# ar, s', (# unsafeCoerce ex | #) #)
 
 
 
-{-# INLINE scopeEscape #-}
-scopeEscape ::
+{-# INLINE delimitEscape #-}
+delimitEscape ::
   forall ref ex efs a b. In (Escape ex ref) efs =>
-  Af efs a ->           -- Effect computation to execute in scope.
-  (a -> Af efs b) ->    -- Action when the shortcut is not taken.
-  (ex -> Af efs b) ->   -- Action when the shortcut is taken.
-  Af efs () ->          -- Action used when a shortcut of another
-                        -- shortcut effect is taken.
+  Af efs a ->           -- Effectful computation to execute.
+  (a -> Af efs b) ->    -- Action used on normal return.
+  (ex -> Af efs b) ->   -- Action when the escape is taken.
+  Af efs () ->          -- Action used when an another, but internal,
+                        -- escape is taken. Note that this does not
+                        -- cover when an external escape is taken.
   Af efs b
-scopeEscape af f g r = Af $ \ sz ar0 s0 ->
-  let di = escapeDepthCellIndex @(Escape ex ref) @efs sz in
+delimitEscape af f g r = Af $ \ sz ar0 s0 ->
+  let di = cellIndexEscapeDepth @(Escape ex ref) @efs sz in
   case copyFromAfArray ar0 (cellIndex di) (fstI16Pair sz) s0 of
     (# s1, backup #) ->
       case unAf af sz ar0 s1 of
@@ -95,3 +97,26 @@ scopeEscape af f g r = Af $ \ sz ar0 s0 ->
                       (# ar1, s3, (# e | #) #)
         (# ar1, s2, (# | a #) #) ->
           unAf (f a) sz ar1 s2
+
+
+-- catchEscape af g = delimitEscape af return g (return ())
+{-# INLINE catchEscape #-}
+catchEscape ::
+  forall ref ex efs a. In (Escape ex ref) efs =>
+  Af efs a -> (ex -> Af efs a) -> Af efs a
+catchEscape af g = Af $ \ sz ar0 s0 ->
+  let di = cellIndexEscapeDepth @(Escape ex ref) @efs sz in
+  case copyFromAfArray ar0 (cellIndex di) (fstI16Pair sz) s0 of
+    (# s1, backup #) ->
+      case unAf af sz ar0 s1 of
+        (# ar1, s2, (# e | #) #) ->
+          case readAfArray @Int ar1 0# s2 of
+            (# s3, d #) ->
+              case unI# d GHC.==# escapeDepth di of
+                1# ->
+                  let s4 = copyToAfArray backup ar1 (cellIndex di) s3
+                  in unAf (g (unsafeCoerce e)) sz ar1 s4
+                _ ->
+                  (# ar1, s3, (# e | #) #)
+        (# ar1, s2, (# | a #) #) ->
+          (# ar1, s2, (# | a #) #)

@@ -58,7 +58,7 @@ type AfToST st es = forall a. Af es a -> ST st (AfEnv st a)
 
 {-# INLINE unsafeAfToST #-}
 unsafeAfToST :: forall s st es. I16Pair -> AfArray s -> AfToST st es
-unsafeAfToST sz ar = \af -> ST $ \s ->
+unsafeAfToST sz ar = \ af -> ST $ \ s ->
   case unAf af sz ar (unsafeCoerceState s) of
     (# ar', s', (# e | #) #) ->
       (# unsafeCoerceState s', unsafeAfEnvError ar' e #)

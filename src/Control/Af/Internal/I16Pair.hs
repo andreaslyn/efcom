@@ -3,7 +3,7 @@
 #include <MachDeps.h>
 
 #if WORD_SIZE_IN_BITS < 32
-#error "unexpected word size in bits < 32"
+#error "word size in bits smaller than 32 is not supported"
 #endif
 
 module Control.Af.Internal.I16Pair
@@ -13,10 +13,10 @@ module Control.Af.Internal.I16Pair
   , makeI16Pair
   , fstI16Pair
   , sndI16Pair
-  , addToFstI16Pair
-  , addToSndI16Pair
-  , minusToFstI16Pair
-  , minusToSndI16Pair
+  , addFstI16Pair
+  , addSndI16Pair
+  , minusFstI16Pair
+  , minusSndI16Pair
   ) where
 
 
@@ -72,23 +72,23 @@ sndI16Pair :: I16Pair -> Int#
 sndI16Pair (I16Pair p) = uncheckedIShiftRL# p (shiftValueI16Pair ())
 
 
-{-# INLINE addToFstI16Pair #-}
-addToFstI16Pair :: I16Pair -> Int# -> I16Pair
-addToFstI16Pair (I16Pair p) i = I16Pair (p +# i)
+{-# INLINE addFstI16Pair #-}
+addFstI16Pair :: I16Pair -> Int# -> I16Pair
+addFstI16Pair (I16Pair p) i = I16Pair (p +# i)
 
 
-{-# INLINE addToSndI16Pair #-}
-addToSndI16Pair :: I16Pair -> Int# -> I16Pair
-addToSndI16Pair (I16Pair p) i =
+{-# INLINE addSndI16Pair #-}
+addSndI16Pair :: I16Pair -> Int# -> I16Pair
+addSndI16Pair (I16Pair p) i =
   I16Pair (p +# uncheckedIShiftL# i (shiftValueI16Pair ()))
 
 
-{-# INLINE minusToFstI16Pair #-}
-minusToFstI16Pair :: I16Pair -> Int# -> I16Pair
-minusToFstI16Pair (I16Pair p) i = I16Pair (p -# i)
+{-# INLINE minusFstI16Pair #-}
+minusFstI16Pair :: I16Pair -> Int# -> I16Pair
+minusFstI16Pair (I16Pair p) i = I16Pair (p -# i)
 
 
-{-# INLINE minusToSndI16Pair #-}
-minusToSndI16Pair :: I16Pair -> Int# -> I16Pair
-minusToSndI16Pair (I16Pair p) i =
+{-# INLINE minusSndI16Pair #-}
+minusSndI16Pair :: I16Pair -> Int# -> I16Pair
+minusSndI16Pair (I16Pair p) i =
   I16Pair (p -# uncheckedIShiftL# i (shiftValueI16Pair ()))

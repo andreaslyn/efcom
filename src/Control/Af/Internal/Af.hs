@@ -15,7 +15,7 @@ import qualified GHC.Exts as GHC
 import Unsafe.Coerce (unsafeCoerce)
 
 
-newtype Af (es :: [*]) (a :: *) = Af
+newtype Af (efs :: [*]) (a :: *) = Af
   { unAf ::
       forall s.
       I16Pair -> AfArray s -> State# s ->
@@ -23,15 +23,15 @@ newtype Af (es :: [*]) (a :: *) = Af
   }
 
 
-instance Functor (Af es) where
+instance Functor (Af efs) where
   {-# INLINE fmap #-}
-  fmap f af = Af $ \sz ar s ->
+  fmap f af = Af $ \ sz ar s ->
     case unAf af sz ar s of
       (# ar', s', (# e | #) #) -> (# ar', s', (# e | #) #)
       (# ar', s', (# | a #) #) -> (# ar', s', (# | f a #) #)
 
 
-instance Applicative (Af es) where
+instance Applicative (Af efs) where
   {-# INLINE pure #-}
   pure a = Af $ \ _ ar s -> (# ar, s, (# | a #) #)
 
@@ -42,7 +42,7 @@ instance Applicative (Af es) where
       (# ar1, s1, (# | f #) #) -> unAf (fmap f af) sz ar1 s1
 
 
-instance Monad (Af es) where
+instance Monad (Af efs) where
   {-# INLINE return #-}
   return = pure
 
@@ -59,7 +59,7 @@ initialAfArray s = newAfArray 2# s
 
 
 {-# INLINE runAf# #-}
-runAf# :: forall es a s. Af es a -> State# s -> (# State# s, a #)
+runAf# :: forall efs a s. Af efs a -> State# s -> (# State# s, a #)
 runAf# af s0 =
   case initialAfArray s0 of
     (# s1, ar #) ->
@@ -76,5 +76,5 @@ runAfPure af = case GHC.runRW# (runAf# af) of (# _, a #) -> a
 
 
 {-# INLINE runAfHead #-}
-runAfHead :: forall e es a. Af (e : es) a -> Af (Effects e ++ es) a
+runAfHead :: forall e efs a. Af (e : efs) a -> Af (Effects e ++ efs) a
 runAfHead = unsafeCoerce

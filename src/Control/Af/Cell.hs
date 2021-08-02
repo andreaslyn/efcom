@@ -3,7 +3,8 @@
 module Control.Af.Cell
   ( Cell
   , runCell
-  , scopeCell
+  , delimitCell
+  , localCell
   , readCell
   , writeCell
   , lazyWriteCell
@@ -57,25 +58,26 @@ runCell af ce k = Af $ \ sz ar s ->
     _ -> unAf (doRunCell af ce k) sz ar s
 
 
-{-# INLINE scopeCell #-}
-scopeCell ::
+{-# INLINE delimitCell #-}
+delimitCell ::
   forall ref ce efs a b. In (Cell ce ref) efs =>
-  Af efs a -> -- Effectful computation to execute in a scope
-  ce ->       -- The cell state to use in this scope
+  Af efs a -> -- Effectful computation to execute.
+  ce ->       -- The initial cell state.
   (a -> ce -> Af efs b) -> -- Success action, used when the scoped
-                           -- computation finished without exception.
+                           -- computation finished without escape.
                            -- The first argument is the result of the
-                           -- somputation the second argument is the
-                           -- final cell state. The cell state is
-                           -- restored to that before scopeCell.
-  (ce -> Af efs ()) ->     -- Faiure action, used when the scoped
-                           -- computation finished by taking a shortcut.
-                           -- The argument is the cell state from when
-                           -- the shortcut was issued. The cell state
-                           -- is restored to that before scopeCell.
+                           -- computation the second argument is the
+                           -- final cell state. The cell state of Af efs
+                           -- is restored to that before delimitCell.
+  (ce -> Af efs ()) ->     -- On escape action. Used when an internal
+                           -- escape is taken. The argument is the cell
+                           -- state from when the escape was taken. The
+                           -- cell state of Af efs is restored to that
+                           -- before delimitCell. Note that external
+                           -- escapes and not covered, only internal.
   Af efs b
-scopeCell af ce k g = Af $ \ sz ar0 s0 ->
-  let di = escapeDepthCellIndex @(Cell ce ref) @efs sz in
+delimitCell af ce k g = Af $ \ sz ar0 s0 ->
+  let di = cellIndexEscapeDepth @(Cell ce ref) @efs sz in
   case readAfArray ar0 (cellIndex di) s0 of
     (# s1, orig #) ->
       let s2 = writeAfArray ar0 (cellIndex di) ce s1 in
@@ -98,23 +100,52 @@ scopeCell af ce k g = Af $ \ sz ar0 s0 ->
               in unAf (k a ce') sz ar1 s5
 
 
+-- localCell af ce k = delimitCell af ce k (\ _ -> return ())
+{-# INLINE localCell #-}
+localCell ::
+  forall ref ce efs a b. In (Cell ce ref) efs =>
+  Af efs a -> -- Effectful computation to execute.
+  ce ->       -- The initial cell state.
+  (a -> ce -> Af efs b) -> -- Success action, used when the scoped
+                           -- computation finished without escape.
+                           -- The first argument is the result of the
+                           -- computation the second argument is the
+                           -- final cell state. The cell state of Af efs
+                           -- is restored to that before localCell.
+  Af efs b
+localCell af ce k = Af $ \ sz ar0 s0 ->
+  let di = cellIndexEscapeDepth @(Cell ce ref) @efs sz in
+  case readAfArray ar0 (cellIndex di) s0 of
+    (# s1, orig #) ->
+      let s2 = writeAfArray ar0 (cellIndex di) ce s1 in
+      case unAf af sz ar0 s2 of
+        (# ar1, s3, (# e | #) #) ->
+           let s4 = writeAfArray ar1 (cellIndex di) orig s3
+           in (# ar1, s4, (# e | #) #)
+        (# ar1, s3, (# | a #) #) ->
+          case readAfArray ar1 (cellIndex di) s3 of
+            (# s4, ce' #) ->
+              let s5 = writeAfArray ar1 (cellIndex di) orig s4
+              in unAf (k a ce') sz ar1 s5
+
+
 {-# INLINE lazyWriteCell #-}
 lazyWriteCell :: forall ref ce efs. In (Cell ce ref) efs => ce -> Af efs ()
 lazyWriteCell ce = Af $ \ sz ar s ->
-  let di = escapeDepthCellIndex @(Cell ce ref) @efs sz
+  let di = cellIndexEscapeDepth @(Cell ce ref) @efs sz
   in (# ar, writeAfArray ar (cellIndex di) ce s, (# | () #) #)
 
 
 {-# INLINE writeCell #-}
 writeCell :: forall ref ce efs. In (Cell ce ref) efs => ce -> Af efs ()
 writeCell !ce = Af $ \ sz ar s ->
-  let di = escapeDepthCellIndex @(Cell ce ref) @efs sz
+  let di = cellIndexEscapeDepth @(Cell ce ref) @efs sz
   in (# ar, writeAfArray ar (cellIndex di) ce s, (# | () #) #)
 
 
 {-# INLINE readCell #-}
 readCell :: forall ref ce efs. In (Cell ce ref) efs => Af efs ce
 readCell = Af $ \ sz ar s ->
-  let di = escapeDepthCellIndex @(Cell ce ref) @efs sz
+  let di = cellIndexEscapeDepth @(Cell ce ref) @efs sz
   in case readAfArray ar (cellIndex di) s of
       (# s', ce #) -> (# ar, s', (# | ce #) #)

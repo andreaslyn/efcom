@@ -90,11 +90,11 @@ appendAfArray sz ar a s =
   let i = fstI16Pair sz in
   case i GHC.<# capacityAfArray ar of
     1# ->
-      (# ar, writeAfArray ar i a s, addToFstI16Pair sz 1# #)
+      (# ar, writeAfArray ar i a s, addFstI16Pair sz 1# #)
     _ ->
       case doubleAfArray ar s of
         (# s', ar' #) ->
-          (# ar', writeAfArray ar' i a s', addToFstI16Pair sz 1# #)
+          (# ar', writeAfArray ar' i a s', addFstI16Pair sz 1# #)
 
 
 ----------------- Copy between AfArray and CopyBuf -------------------

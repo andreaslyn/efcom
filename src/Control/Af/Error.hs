@@ -29,4 +29,4 @@ throwError = takeEscape @(Error e)
 catchError ::
   forall e efs a. In (Error e) efs =>
   Af efs a -> (e -> Af efs a) -> Af efs a
-catchError af h = scopeEscape @(Error e) af return h (return ())
+catchError = catchEscape @(Error e)

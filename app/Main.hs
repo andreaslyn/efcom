@@ -63,7 +63,7 @@ testLoop r 0 = do
   then takeEscape @() "fail!"
   else return $ if y then (z + 1, x + 1) else (z, x)
 testLoop r i = do
-  scopeEscape @() @String (do
+  delimitEscape @() @String (do
       x <- readCell @(OtherState Composite) @Int
       y <- readCell @Composite @Bool
       !z <- liftST (readSTRef r)

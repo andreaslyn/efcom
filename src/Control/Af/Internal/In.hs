@@ -3,7 +3,7 @@
 
 module Control.Af.Internal.In
   ( IsIn (..)
-  , escapeDepthCellIndex
+  , cellIndexEscapeDepth
   , escapeDepth
   , cellIndex
   , In
@@ -19,12 +19,12 @@ import Data.Kind (Constraint)
 
 
 class IsIn (e :: *) (efs :: [*]) where
-  isInEscapeCellPair :: Int# -> I16Pair
+  afSizeToCellEscapePair :: Int# -> I16Pair
 
 
-{-# INLINE escapeDepthCellIndex #-}
-escapeDepthCellIndex :: forall e efs. IsIn e efs => I16Pair -> I16Pair
-escapeDepthCellIndex p = isInEscapeCellPair @e @efs (fstI16Pair p)
+{-# INLINE cellIndexEscapeDepth #-}
+cellIndexEscapeDepth :: forall e efs. IsIn e efs => I16Pair -> I16Pair
+cellIndexEscapeDepth p = afSizeToCellEscapePair @e @efs (fstI16Pair p)
 
 
 {-# INLINE cellIndex #-}
@@ -38,51 +38,51 @@ escapeDepth = sndI16Pair
 
 
 instance IsIn (Cell ce ref) (Cell ce ref : efs) where
-  {-# INLINE isInEscapeCellPair #-}
-  isInEscapeCellPair sz = makeI16Pair (sz -# 1#) 0#
+  {-# INLINE afSizeToCellEscapePair #-}
+  afSizeToCellEscapePair sz = makeI16Pair (sz -# 1#) 0#
 
 
 instance IsIn IOE (IOE : efs) where
-  {-# INLINE isInEscapeCellPair #-}
-  isInEscapeCellPair sz = makeI16Pair sz 0#
+  {-# INLINE afSizeToCellEscapePair #-}
+  afSizeToCellEscapePair sz = makeI16Pair sz 0#
 
 
 instance IsIn (STE st) (STE st : efs) where
-  {-# INLINE isInEscapeCellPair #-}
-  isInEscapeCellPair sz = makeI16Pair sz 0#
+  {-# INLINE afSizeToCellEscapePair #-}
+  afSizeToCellEscapePair sz = makeI16Pair sz 0#
 
 
 instance IsIn (Escape ex ref) (Escape ex ref : efs) where
-  {-# INLINE isInEscapeCellPair #-}
-  isInEscapeCellPair sz = makeI16Pair sz 1#
+  {-# INLINE afSizeToCellEscapePair #-}
+  afSizeToCellEscapePair sz = makeI16Pair sz 1#
 
 
 instance {-# OVERLAPPABLE #-} IsIn e (Effects d ++ efs) => IsIn e (d : efs)
   where
-  {-# INLINE isInEscapeCellPair #-}
-  isInEscapeCellPair = isInEscapeCellPair @e @(Effects d ++ efs)
+  {-# INLINE afSizeToCellEscapePair #-}
+  afSizeToCellEscapePair = afSizeToCellEscapePair @e @(Effects d ++ efs)
 
 
 instance {-# OVERLAPPABLE #-} IsIn e efs => IsIn e (Cell ce d : efs) where
-  {-# INLINE isInEscapeCellPair #-}
-  isInEscapeCellPair sz =
-    minusToFstI16Pair (isInEscapeCellPair @e @efs sz) 1#
+  {-# INLINE afSizeToCellEscapePair #-}
+  afSizeToCellEscapePair sz =
+    minusFstI16Pair (afSizeToCellEscapePair @e @efs sz) 1#
 
 
 instance {-# OVERLAPPABLE #-} IsIn e efs => IsIn e (IOE : efs) where
-  {-# INLINE isInEscapeCellPair #-}
-  isInEscapeCellPair = isInEscapeCellPair @e @efs
+  {-# INLINE afSizeToCellEscapePair #-}
+  afSizeToCellEscapePair = afSizeToCellEscapePair @e @efs
 
 
 instance {-# OVERLAPPABLE #-} IsIn e efs => IsIn e (STE st : efs) where
-  {-# INLINE isInEscapeCellPair #-}
-  isInEscapeCellPair = isInEscapeCellPair @e @efs
+  {-# INLINE afSizeToCellEscapePair #-}
+  afSizeToCellEscapePair = afSizeToCellEscapePair @e @efs
 
 
 instance {-# OVERLAPPABLE #-} IsIn e efs => IsIn e (Escape ex ref : efs) where
-  {-# INLINE isInEscapeCellPair #-}
-  isInEscapeCellPair sz =
-    addToSndI16Pair (isInEscapeCellPair @e @efs sz) 1#
+  {-# INLINE afSizeToCellEscapePair #-}
+  afSizeToCellEscapePair sz =
+    addSndI16Pair (afSizeToCellEscapePair @e @efs sz) 1#
 
 
 type family In (e :: *) (efs :: [*]) where
