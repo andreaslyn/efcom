@@ -6,7 +6,7 @@ import qualified Af.ReadWriteNoError as Af
 import qualified Af.Countdown as Af
 
 import qualified MTL.ReadWriteNoError as MTL
-import qualified Af.Countdown as MTL
+import qualified MTL.Countdown as MTL
 
 
 readWriteNoError :: C.Benchmark

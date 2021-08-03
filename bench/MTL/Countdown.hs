@@ -1,5 +1,6 @@
 module MTL.Countdown
   ( runCountdownPut
+  , runCountdownExc
   ) where
 
 import Control.Monad.State
