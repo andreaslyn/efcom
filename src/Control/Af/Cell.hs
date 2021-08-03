@@ -69,12 +69,14 @@ delimitCell ::
                            -- computation the second argument is the
                            -- final cell state. The cell state of Af efs
                            -- is restored to that before delimitCell.
-  (ce -> Af efs ()) ->     -- On escape action. Used when an internal
-                           -- escape is taken. The argument is the cell
-                           -- state from when the escape was taken. The
-                           -- cell state of Af efs is restored to that
-                           -- before delimitCell. Note that external
-                           -- escapes and not covered, only internal.
+  (ce -> ce -> ce) ->      -- On escape action. Used when an internal
+                           -- escape is taken. The first argument is
+                           -- the cell state before delimitCell. The
+                           -- second argument is the cell state from
+                           -- when the escape was taken. The result
+                           -- is the new cell state after delimitCell.
+                           -- Note that, as an optimisation, external
+                           -- escapes do not cause this, only internal.
   Af efs b
 delimitCell af ce k g = Af $ \ sz ar0 s0 ->
   let di = cellIndexEscapeDepth @(Cell ce ref) @efs sz in
@@ -87,9 +89,8 @@ delimitCell af ce k g = Af $ \ sz ar0 s0 ->
            case unI# c GHC.<=# escapeDepth di of
             1# -> -- Internal escape.
               let !(# s5, ce' #) = readAfArray ar1 (cellIndex di) s4
-                  s6 = writeAfArray ar1 (cellIndex di) orig s5
-                  !(# ar2, s7, _ #) = unAf (g ce') sz ar1 s6
-              in (# ar2, s7, (# e | #) #)
+                  s6 = writeAfArray ar1 (cellIndex di) (g orig ce') s5
+              in (# ar1, s6, (# e | #) #)
             _ ->  -- External escape.
               let s5 = writeAfArray ar1 (cellIndex di) orig s4
               in (# ar1, s5, (# e | #) #)
@@ -100,7 +101,7 @@ delimitCell af ce k g = Af $ \ sz ar0 s0 ->
               in unAf (k a ce') sz ar1 s5
 
 
--- localCell af ce k = delimitCell af ce k (\ _ -> return ())
+-- localCell af ce k = delimitCell af ce k (\ ce' _ -> ce')
 {-# INLINE localCell #-}
 localCell ::
   forall ref ce efs a b. In (Cell ce ref) efs =>
@@ -138,9 +139,9 @@ lazyWriteCell ce = Af $ \ sz ar s ->
 
 {-# INLINE writeCell #-}
 writeCell :: forall ref ce efs. In (Cell ce ref) efs => ce -> Af efs ()
-writeCell !ce = Af $ \ sz ar s ->
+writeCell ce = Af $ \ sz ar s ->
   let di = cellIndexEscapeDepth @(Cell ce ref) @efs sz
-  in (# ar, writeAfArray ar (cellIndex di) ce s, (# | () #) #)
+  in (# ar, strictWriteAfArray ar (cellIndex di) ce s, (# | () #) #)
 
 
 {-# INLINE readCell #-}

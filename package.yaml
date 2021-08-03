@@ -21,9 +21,6 @@ description:         Please see the README on GitHub at <https://github.com/gith
 
 dependencies:
 - base >= 4.7 && < 5
-- array
-- transformers
-- mtl
 
 library:
   source-dirs: src
@@ -44,7 +41,7 @@ executables:
 
 tests:
   af-test:
-    main:                Spec.hs
+    main:                Main.hs
     source-dirs:         test
     ghc-options:
     - -threaded
@@ -61,14 +58,15 @@ benchmarks:
     main: Main.hs
     source-dirs: bench
     ghc-options:
-    - -rtsopts
     - -threaded
+    - -rtsopts
     - -with-rtsopts=-N
-    - -O2 
+    - -O2
     - -fspec-constr-keen
     - -fdicts-strict
     dependencies:
     - af
+    - transformers
     - mtl
     - criterion
 

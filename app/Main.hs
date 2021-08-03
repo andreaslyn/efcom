@@ -1,15 +1,8 @@
-module Main where
-
 import Control.Af
 import Control.Af.Cell
 import Control.Af.Escape
 import Control.Af.STE
 import Control.Af.IOE
-
-import qualified Control.Monad.Writer as T
-import qualified Control.Monad.Except as T
-import qualified Control.Monad.State.Strict as T
-import Control.Monad.Trans.Class (lift)
 
 import Data.STRef (STRef, newSTRef, writeSTRef, readSTRef)
 
@@ -71,37 +64,7 @@ testLoop r i = do
       writeCell @Composite (not y)
       liftST (writeSTRef r (z + 1))
       testLoop r (i - 1)
-    ) return catchClause (return ())
-
-
-{-# NOINLINE catchClauseT #-}
-catchClauseT :: String -> T.StateT Bool (T.StateT Int (T.Except String)) Int
-catchClauseT _ = do
-  !x <- lift T.get
-  !y <- T.get
-  return $ if y then x + 1 else x
-
-
-{-# NOINLINE testLoopT #-}
-testLoopT ::
-  Int -> T.StateT Bool (T.StateT Int (T.Except String)) Int
-testLoopT 0 = do
-  !x <- lift T.get
-  !y <- T.get
-  if x < 0
-  then T.throwError "fail!"
-  else return $ if y then x + 1 else x
-testLoopT i = flip T.catchError catchClauseT $ do
-  !x <- lift T.get
-  !y <- T.get
-  lift $ T.put (x + 1)
-  T.put (not y)
-  testLoopT (i - 1)
-
-
-globalWriterListen :: T.ExceptT String (T.Writer String) ()
-globalWriterListen = do
-  T.pass (T.tell "hello" >> return ((), (\s -> "!"++s++"!")))
+    ) return catchClause
 
 
 loopWithST ::
@@ -161,5 +124,3 @@ main = do
       (0 :: Int) (\i _ -> return i)))
     (return . Right) (return . Left)
 -}
-  --print (T.runExceptT (T.runStateT (T.runStateT (testLoopT 1000000) False) 0))
-  --print $ T.runWriter (T.runExceptT globalWriterListen)

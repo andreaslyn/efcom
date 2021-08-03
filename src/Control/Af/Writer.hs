@@ -59,7 +59,7 @@ lazyListen ::
   Af efs a -> Af efs (a, w)
 lazyListen af = do
   delimitCell @(Writer w) af mempty
-    (\ a w -> lazyTell w >> return (a, w)) lazyTell
+    (\ a w -> lazyTell w >> return (a, w)) mappend
 
 
 {-# INLINE listen #-}
@@ -68,7 +68,7 @@ listen ::
   Af efs a -> Af efs (a, w)
 listen af = do
   delimitCell @(Writer w) af mempty
-    (\ a w -> tell w >> return (a, w)) tell
+    (\ a w -> tell w >> return (a, w)) mappend
 
 
 {-# INLINE lazyPass #-}
@@ -77,7 +77,7 @@ lazyPass ::
   Af efs (a, w -> w) -> Af efs a
 lazyPass af = do
   delimitCell @(Writer w) af mempty
-    (\ (a, f) w -> lazyTell (f w) >> return a) lazyTell
+    (\ (a, f) w -> lazyTell (f w) >> return a) mappend
 
 
 {-# INLINE pass #-}
@@ -86,7 +86,7 @@ pass ::
   Af efs (a, w -> w) -> Af efs a
 pass af = do
   delimitCell @(Writer w) af mempty
-    (\ (a, f) w -> tell (f w) >> return a) tell
+    (\ (a, f) w -> tell (f w) >> return a) mappend
 
 
 {-# INLINE lazyListens #-}
@@ -95,7 +95,7 @@ lazyListens ::
   (w -> b) -> Af efs a -> Af efs (a, b)
 lazyListens f af = do
   delimitCell @(Writer w) af mempty
-    (\ a w -> lazyTell w >> return (a, f w)) lazyTell
+    (\ a w -> lazyTell w >> return (a, f w)) mappend
 
 
 {-# INLINE listens #-}
@@ -104,7 +104,7 @@ listens ::
   (w -> b) -> Af efs a -> Af efs (a, b)
 listens f af = do
   delimitCell @(Writer w) af mempty
-    (\ a w -> tell w >> return (a, f w)) tell
+    (\ a w -> tell w >> return (a, f w)) mappend
 
 
 {-# INLINE lazyCensor #-}
@@ -113,7 +113,7 @@ lazyCensor ::
   (w -> w) -> Af efs a -> Af efs a
 lazyCensor f af =
   delimitCell @(Writer w) af mempty
-    (\ a w -> lazyTell (f w) >> return a) lazyTell
+    (\ a w -> lazyTell (f w) >> return a) mappend
 
 
 {-# INLINE censor #-}
@@ -122,4 +122,4 @@ censor ::
   (w -> w) -> Af efs a -> Af efs a
 censor f af = 
   delimitCell @(Writer w) af mempty
-    (\ a w -> tell (f w) >> return a) tell
+    (\ a w -> tell (f w) >> return a) mappend

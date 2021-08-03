@@ -4,6 +4,7 @@ module Control.Af.Escape
   ( Escape
   , runEscape
   , takeEscape
+  , takeEscape_
   , delimitEscape
   , catchEscape
   ) where
@@ -37,7 +38,7 @@ doRunEscape af f g = Af $ \ sz ar0 s0 ->
           then
             unAf (g (unsafeCoerce e)) sz ar1 s2
           else
-            let s3 = writeStrictAfArray ar1 0# (i - 1) s2
+            let s3 = strictWriteAfArray ar1 0# (i - 1) s2
             in (# ar1, s3, (# e | #) #)
     (# ar1, s1, (# | a #) #) ->
       unAf (f a) sz ar1 s1
@@ -61,9 +62,13 @@ runEscape af f g = Af $ \ sz ar s ->
 takeEscape :: forall ref ex efs a. In (Escape ex ref) efs => ex -> Af efs a
 takeEscape ex = Af $ \ sz ar s ->
   let di = cellIndexEscapeDepth @(Escape ex ref) @efs sz
-      s' = writeStrictAfArray @Int ar 0# (GHC.I# (escapeDepth di)) s
+      s' = strictWriteAfArray @Int ar 0# (GHC.I# (escapeDepth di)) s
   in (# ar, s', (# unsafeCoerce ex | #) #)
 
+
+{-# INLINE takeEscape_ #-}
+takeEscape_ :: forall ref ex efs. In (Escape ex ref) efs => ex -> Af efs ()
+takeEscape_ = takeEscape @ref
 
 
 {-# INLINE delimitEscape #-}
@@ -72,11 +77,8 @@ delimitEscape ::
   Af efs a ->           -- Effectful computation to execute.
   (a -> Af efs b) ->    -- Action used on normal return.
   (ex -> Af efs b) ->   -- Action when the escape is taken.
-  Af efs () ->          -- Action used when an another, but internal,
-                        -- escape is taken. Note that this does not
-                        -- cover when an external escape is taken.
   Af efs b
-delimitEscape af f g r = Af $ \ sz ar0 s0 ->
+delimitEscape af f g = Af $ \ sz ar0 s0 ->
   let di = cellIndexEscapeDepth @(Escape ex ref) @efs sz in
   case copyFromAfArray ar0 (cellIndex di) (fstI16Pair sz) s0 of
     (# s1, backup #) ->
@@ -89,17 +91,12 @@ delimitEscape af f g r = Af $ \ sz ar0 s0 ->
                   let s4 = copyToAfArray backup ar1 (cellIndex di) s3
                   in unAf (g (unsafeCoerce e)) sz ar1 s4
                 _ ->
-                  case unI# d GHC.<# escapeDepth di of
-                    1# -> -- Internal escape.
-                      let !(# ar2, s4, _ #) = unAf r sz ar1 s3
-                      in (# ar2, s4, (# e | #) #)
-                    _ ->  -- External escape.
-                      (# ar1, s3, (# e | #) #)
+                  (# ar1, s3, (# e | #) #)
         (# ar1, s2, (# | a #) #) ->
           unAf (f a) sz ar1 s2
 
 
--- catchEscape af g = delimitEscape af return g (return ())
+-- catchEscape af g = delimitEscape af return g
 {-# INLINE catchEscape #-}
 catchEscape ::
   forall ref ex efs a. In (Escape ex ref) efs =>

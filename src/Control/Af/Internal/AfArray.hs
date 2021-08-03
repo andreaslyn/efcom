@@ -5,7 +5,7 @@ module Control.Af.Internal.AfArray
   , newAfArray
   , capacityAfArray
   , writeAfArray
-  , writeStrictAfArray
+  , strictWriteAfArray
   , readAfArray
   , doubleAfArray
   , appendAfArray
@@ -56,10 +56,10 @@ writeAfArray ::
 writeAfArray ar i a s = GHC.writeArray# ar i (unsafeCoerce# a) s
 
 
-{-# INLINE writeStrictAfArray #-}
-writeStrictAfArray ::
+{-# INLINE strictWriteAfArray #-}
+strictWriteAfArray ::
   forall a s. AfArray s -> Int# -> a -> State# s -> State# s
-writeStrictAfArray ar i !a s = GHC.writeArray# ar i (unsafeCoerce# a) s
+strictWriteAfArray ar i !a s = GHC.writeArray# ar i (unsafeCoerce# a) s
 
 
 {-# INLINE readAfArray #-}
