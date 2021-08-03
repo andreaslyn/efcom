@@ -1,6 +1,5 @@
 module MTL.ReadWriteNoError
   ( runReadWriteNoError
-  , readWriteNoError
   ) where
 
 import Control.Monad.Reader
@@ -24,16 +23,10 @@ loop i = flip catchError throwError $ do
     local (+0) (loop (i - 1))
 
 
-numberIterations :: Int
-numberIterations = 100000
-
-
-{-# INLINABLE readWriteNoError #-}
-readWriteNoError :: ReadWriteNoErrorT ()
-readWriteNoError = loop numberIterations
-
-
 {-# INLINABLE runReadWriteNoError #-}
-runReadWriteNoError :: ReadWriteNoErrorT () -> Either String (Sum Int)
-runReadWriteNoError comp =
-  runExcept (execWriterT (runReaderT (runStateT comp 0) 1))
+runReadWriteNoError :: Int -> Either String (Sum Int)
+runReadWriteNoError n =
+  runExcept $
+  execWriterT $
+  flip runReaderT 1 $
+  runStateT (loop n) 0

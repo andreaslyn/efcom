@@ -1,6 +1,5 @@
 module Af.ReadWriteNoError
   ( runReadWriteNoError
-  , readWriteNoError
   ) where
 
 import Control.Af
@@ -31,20 +30,11 @@ loop i = flip catchError (throwError @String) $ do
     local @Int (+0) (loop (i - 1))
 
 
-numberIterations :: Int
-numberIterations = 100000
-
-
-{-# NOINLINE readWriteNoError #-}
-readWriteNoError :: ReadWriteNoError efs => Af efs ()
-readWriteNoError = loop numberIterations
-
-
-type ReadWriteNoErrorT =
-  Af '[State Int, Reader Int, Writer (Sum Int), Error String] ()
-
-
 {-# NOINLINE runReadWriteNoError #-}
-runReadWriteNoError :: ReadWriteNoErrorT -> Either String (Sum Int)
-runReadWriteNoError comp =
-  runAfPure $ runError (execWriter (runReader (evalState comp 0) 1))
+runReadWriteNoError :: Int -> Either String (Sum Int)
+runReadWriteNoError n =
+  runAfPure $
+  runError @String $
+  execWriter @(Sum Int) $
+  flip (runReader @Int) 1 $
+  evalState @Int (loop n) 0
