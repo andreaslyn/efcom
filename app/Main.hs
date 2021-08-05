@@ -3,6 +3,7 @@ import Control.Af.Cell
 import Control.Af.Escape
 import Control.Af.STE
 import Control.Af.IOE
+import Control.Af.State
 
 import Data.STRef (STRef, newSTRef, writeSTRef, readSTRef)
 
@@ -79,13 +80,25 @@ loopWithST = do
         (0 :: Int) (\i s -> return (i, s)))
 
 
+{-# NOINLINE countdownPut #-}
+countdownPut :: In (State Int) efs => Af efs Int
+countdownPut = do
+  (>>=) (get @Int) (\ n ->
+    if n < 0
+    then pure n
+    else
+      (*>) (put (n - 1)) countdownPut
+   )
+
+
+{-# NOINLINE runCountdownPut #-}
+runCountdownPut :: Int -> (Int, Int)
+runCountdownPut n = runAfPure $ runState countdownPut n
+
+
 main :: IO ()
 main = do
-  x <- withIOERunSTE $ do
-    liftIO (putStrLn "hello 1")
-    runEscape @() @String loopWithST
-      (return . Right) (return . Left)
-  print x
+  print (runCountdownPut 1000000)
 {-
   print $ pureAf $
     (runEscape @() @String

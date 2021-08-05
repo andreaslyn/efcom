@@ -32,16 +32,18 @@ doRunCell af ce k = Af $ \ sz ar0 s0 ->
   case appendAfArray sz ar0 ce s0 of
     (# ar1, s1, sz' #) ->
       case unAf af sz' ar1 s1 of
-        (# ar2, s2, (# e | #) #) ->
-          let i = fstI16Pair sz
-              s3 = writeAfArray ar2 i undefinedElementAfArray s2
-          in (# ar2, s3, (# e | #) #)
-        (# ar2, s2, (# | a #) #) ->
+        (# ar2, s2, (# a | | #) #) ->
           let i = fstI16Pair sz in
           case readAfArray ar2 i s2 of
             (# s3, ce' #) ->
               let s4 = writeAfArray ar2 i undefinedElementAfArray s3
               in unAf (k a ce') sz ar2 s4
+        (# ar2, s2, (# | e | #) #) ->
+          let i = fstI16Pair sz
+              s3 = writeAfArray ar2 i undefinedElementAfArray s2
+          in (# ar2, s3, (# | e | #) #)
+        (# ar2, s2, (# | | kf #) #) ->
+          (# ar2, s2, (# | | \x -> doRunCell (kf x) ce k #) #)
 
 
 {-# INLINE runCell #-}
@@ -84,21 +86,23 @@ delimitCell af ce k g = Af $ \ sz ar0 s0 ->
     (# s1, orig #) ->
       let s2 = writeAfArray ar0 (cellIndex di) ce s1 in
       case unAf af sz ar0 s2 of
-        (# ar1, s3, (# e | #) #) ->
+        (# ar1, s3, (# a | | #) #) ->
+          case readAfArray ar1 (cellIndex di) s3 of
+            (# s4, ce' #) ->
+              let s5 = writeAfArray ar1 (cellIndex di) orig s4
+              in unAf (k a ce') sz ar1 s5
+        (# ar1, s3, (# | e | #) #) ->
            let !(# s4, c #) = readAfArray @Int ar1 0# s3 in
            case unI# c GHC.<=# escapeDepth di of
             1# -> -- Internal escape.
               let !(# s5, ce' #) = readAfArray ar1 (cellIndex di) s4
                   s6 = writeAfArray ar1 (cellIndex di) (g orig ce') s5
-              in (# ar1, s6, (# e | #) #)
+              in (# ar1, s6, (# | e | #) #)
             _ ->  -- External escape.
               let s5 = writeAfArray ar1 (cellIndex di) orig s4
-              in (# ar1, s5, (# e | #) #)
-        (# ar1, s3, (# | a #) #) ->
-          case readAfArray ar1 (cellIndex di) s3 of
-            (# s4, ce' #) ->
-              let s5 = writeAfArray ar1 (cellIndex di) orig s4
-              in unAf (k a ce') sz ar1 s5
+              in (# ar1, s5, (# | e | #) #)
+        (# ar1, s3, (# | | kf #) #) ->
+          (# ar1, s3, (# | | \x -> delimitCell @ref (kf x) ce k g #) #)
 
 
 -- localCell af ce k = delimitCell af ce k (\ ce' _ -> ce')
@@ -120,28 +124,30 @@ localCell af ce k = Af $ \ sz ar0 s0 ->
     (# s1, orig #) ->
       let s2 = writeAfArray ar0 (cellIndex di) ce s1 in
       case unAf af sz ar0 s2 of
-        (# ar1, s3, (# e | #) #) ->
-           let s4 = writeAfArray ar1 (cellIndex di) orig s3
-           in (# ar1, s4, (# e | #) #)
-        (# ar1, s3, (# | a #) #) ->
+        (# ar1, s3, (# a | | #) #) ->
           case readAfArray ar1 (cellIndex di) s3 of
             (# s4, ce' #) ->
               let s5 = writeAfArray ar1 (cellIndex di) orig s4
               in unAf (k a ce') sz ar1 s5
+        (# ar1, s3, (# | e | #) #) ->
+           let s4 = writeAfArray ar1 (cellIndex di) orig s3
+           in (# ar1, s4, (# | e | #) #)
+        (# ar1, s3, (# | | kf #) #) ->
+          (# ar1, s3, (# | | \ x -> localCell @ref (kf x) ce k #) #)
 
 
 {-# INLINE lazyWriteCell #-}
 lazyWriteCell :: forall ref ce efs. In (Cell ce ref) efs => ce -> Af efs ()
 lazyWriteCell ce = Af $ \ sz ar s ->
   let di = cellIndexEscapeDepth @(Cell ce ref) @efs sz
-  in (# ar, writeAfArray ar (cellIndex di) ce s, (# | () #) #)
+  in (# ar, writeAfArray ar (cellIndex di) ce s, (# () | | #) #)
 
 
 {-# INLINE writeCell #-}
 writeCell :: forall ref ce efs. In (Cell ce ref) efs => ce -> Af efs ()
 writeCell ce = Af $ \ sz ar s ->
   let di = cellIndexEscapeDepth @(Cell ce ref) @efs sz
-  in (# ar, strictWriteAfArray ar (cellIndex di) ce s, (# | () #) #)
+  in (# ar, strictWriteAfArray ar (cellIndex di) ce s, (# () | | #) #)
 
 
 {-# INLINE readCell #-}
@@ -149,4 +155,4 @@ readCell :: forall ref ce efs. In (Cell ce ref) efs => Af efs ce
 readCell = Af $ \ sz ar s ->
   let di = cellIndexEscapeDepth @(Cell ce ref) @efs sz
   in case readAfArray ar (cellIndex di) s of
-      (# s', ce #) -> (# ar, s', (# | ce #) #)
+      (# s', ce #) -> (# ar, s', (# ce | | #) #)

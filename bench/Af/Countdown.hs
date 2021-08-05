@@ -7,14 +7,18 @@ import Control.Af
 import Control.Af.State
 import Control.Af.Error
 
+import GHC.Exts (inline)
+
 
 {-# NOINLINE countdownPut #-}
 countdownPut :: In (State Int) efs => Af efs Int
 countdownPut = do
-  n <- get @Int
-  if n < 0
-  then pure n
-  else put (n - 1) *> countdownPut
+  (>>=) (get @Int) (\ n ->
+    if n < 0
+    then pure n
+    else
+      (*>) (put (n - 1)) countdownPut
+   )
 
 
 {-# NOINLINE runCountdownPut #-}

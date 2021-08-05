@@ -60,10 +60,12 @@ type AfToST st es = forall a. Af es a -> ST st (AfEnv st a)
 unsafeAfToST :: forall s st es. I16Pair -> AfArray s -> AfToST st es
 unsafeAfToST sz ar = \ af -> ST $ \ s ->
   case unAf af sz ar (unsafeCoerceState s) of
-    (# ar', s', (# e | #) #) ->
-      (# unsafeCoerceState s', unsafeAfEnvError ar' e #)
-    (# ar', s', (# | a #) #) ->
+    (# ar', s', (# a | | #) #) ->
       (# unsafeCoerceState s', unsafeAfEnvSuccess ar' a #)
+    (# ar', s', (# | e | #) #) ->
+      (# unsafeCoerceState s', unsafeAfEnvError ar' e #)
+    (# _, _, (# | | _ #) #) ->
+      error "WHAT?"
 
 
 {-# INLINE controlST #-}
@@ -73,13 +75,13 @@ controlST ::
 controlST f = Af $ \ sz ar0 s0 ->
   case unST (f (unsafeAfToST sz ar0)) (unsafeCoerceState s0) of
     (# s1, AfEnvError ar1 e #) ->
-      (# unsafeCoerceAfArray ar1, unsafeCoerceState s1, (# e | #) #)
+      (# unsafeCoerceAfArray ar1, unsafeCoerceState s1, (# | e | #) #)
     (# s1, AfEnvSuccess ar1 a #) ->
-      (# unsafeCoerceAfArray ar1, unsafeCoerceState s1, (# | a #) #)
+      (# unsafeCoerceAfArray ar1, unsafeCoerceState s1, (# a | | #) #)
 
 
 {-# INLINE liftST #-}
 liftST :: forall st es a. In (STE st) es => ST st a -> Af es a
 liftST st = Af $ \ _ ar s0 ->
   let !(# s1, a #) = unST st (unsafeCoerceState s0)
-  in (# ar, unsafeCoerceState s1, (# | a #) #)
+  in (# ar, unsafeCoerceState s1, (# a | | #) #)
