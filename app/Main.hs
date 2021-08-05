@@ -4,6 +4,7 @@ import Control.Af.Escape
 import Control.Af.STE
 import Control.Af.IOE
 import Control.Af.State
+import Control.Af.Handle
 
 import Data.STRef (STRef, newSTRef, writeSTRef, readSTRef)
 
@@ -96,9 +97,36 @@ runCountdownPut :: Int -> (Int, Int)
 runCountdownPut n = runAfPure $ runState countdownPut n
 
 
+data Nondet (efs :: [*]) (a :: *) =
+  Empty | Choose (Af efs a) (Af efs a)
+
+
+nondetHandler :: forall efs a. Handler [] Nondet efs a
+nondetHandler Empty _ = return []
+nondetHandler (Choose m1 m2) h = do
+  n1 <- h m1
+  n2 <- h m2
+  return (n1 ++ n2)
+
+
+testNondet ::
+  In (Handle Nondet ()) efs =>
+  In (State Int) efs =>
+  In (State Bool) efs =>
+  Af efs (Int, Int, Int)
+testNondet = do
+  b1 <- get @Bool
+  x <- backtrackHandle @() (Choose (put @Bool (not b1) >> get @Int) (put @Int 1 >> fmap (1+) (get @Int)))
+  b2 <- get @Bool
+  y <- transaction @Int (get @Int >>= \ i -> put (i+1) >> backtrackHandle @() (Choose (put @Bool (not b2) >> get @Int) (backtrackHandle @() (Choose (backtrackHandle @() Empty) (get @Int >>= \ i -> put (i+1) >> get @Int))))) 2
+  s <- get @Int
+  return (x, y, s)
+
+
 main :: IO ()
 main = do
-  print (runCountdownPut 1000000)
+  print (runAfPure (runState @Int (runHandle @() (runState @Bool testNondet False) nondetHandler) 1))
+  --print (runCountdownPut 1000000)
 {-
   print $ pureAf $
     (runEscape @() @String

@@ -52,6 +52,11 @@ instance IsIn (STE st) (STE st : efs) where
   afSizeToCellEscapePair sz = makeI16Pair sz 0#
 
 
+instance IsIn (Handle ha ref) (Handle ha ref : efs) where
+  {-# INLINE afSizeToCellEscapePair #-}
+  afSizeToCellEscapePair sz = makeI16Pair sz 1#
+
+
 instance IsIn (Escape ex ref) (Escape ex ref : efs) where
   {-# INLINE afSizeToCellEscapePair #-}
   afSizeToCellEscapePair sz = makeI16Pair sz 1#
@@ -79,6 +84,12 @@ instance {-# OVERLAPPABLE #-} IsIn e efs => IsIn e (STE st : efs) where
   afSizeToCellEscapePair = afSizeToCellEscapePair @e @efs
 
 
+instance {-# OVERLAPPABLE #-} IsIn e efs => IsIn e (Handle ha ref : efs) where
+  {-# INLINE afSizeToCellEscapePair #-}
+  afSizeToCellEscapePair sz =
+    addSndI16Pair (afSizeToCellEscapePair @e @efs sz) 1#
+
+
 instance {-# OVERLAPPABLE #-} IsIn e efs => IsIn e (Escape ex ref : efs) where
   {-# INLINE afSizeToCellEscapePair #-}
   afSizeToCellEscapePair sz =
@@ -88,8 +99,9 @@ instance {-# OVERLAPPABLE #-} IsIn e efs => IsIn e (Escape ex ref : efs) where
 type family In (e :: *) (efs :: [*]) where
   In IOE efs = IsIn IOE efs
   In (STE st) efs = IsIn (STE st) efs
-  In (Cell ce i) efs = IsIn (Cell ce i) efs
-  In (Escape ex i) efs = IsIn (Escape ex i) efs
+  In (Cell ce ref) efs = IsIn (Cell ce ref) efs
+  In (Handle ha ref) efs = IsIn (Handle ha ref) efs
+  In (Escape ex ref) efs = IsIn (Escape ex ref) efs
   In e efs = AllIn (Effects e) efs
 
 

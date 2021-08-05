@@ -31,6 +31,7 @@ library
       Control.Af.Effect
       Control.Af.Error
       Control.Af.Escape
+      Control.Af.Handle
       Control.Af.In
       Control.Af.Internal.Af
       Control.Af.Internal.AfArray

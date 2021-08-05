@@ -43,12 +43,12 @@ doRunCell' af ce k = Af $ \ sz ar0 s0 ->
           let i = fstI16Pair sz
               s3 = writeAfArray ar2 i undefinedElementAfArray s2
           in (# ar2, s3, (# | e | #) #)
-        (# ar2, s2, (# | | kf #) #) ->
+        (# ar2, s2, (# | | (# op, kf #) #) #) ->
           let i = fstI16Pair sz in
           case readAfArray ar2 i s2 of
             (# s3, ce' #) ->
               let s4 = writeAfArray ar2 i undefinedElementAfArray s3
-              in (# ar2, s4, (# | | \x -> doRunCell' (kf x) ce' k #) #)
+              in (# ar2, s4, (# | | (# op, \x -> doRunCell' (kf x) ce' k #) #) #)
 
 
 {-# INLINE doRunCell #-}
@@ -117,11 +117,11 @@ delimitCell' af ce k g = Af $ \ sz ar0 s0 ->
             _ ->  -- External escape.
               let s5 = writeAfArray ar1 (cellIndex di) orig s4
               in (# ar1, s5, (# | e | #) #)
-        (# ar1, s3, (# | | kf #) #) ->
+        (# ar1, s3, (# | | (# op, kf #) #) #) ->
           case readAfArray ar1 (cellIndex di) s3 of
             (# s4, ce' #) ->
               let s5 = writeAfArray ar1 (cellIndex di) orig s4
-              in (# ar1, s5, (# | | \x -> delimitCell' @ref (kf x) ce' k g #) #)
+              in (# ar1, s5, (# | | (# op, \x -> delimitCell' @ref (kf x) ce' k g #) #) #)
 
 
 {-# INLINE delimitCell #-}
@@ -173,11 +173,11 @@ localCell' af ce k = Af $ \ sz ar0 s0 ->
         (# ar1, s3, (# | e | #) #) ->
            let s4 = writeAfArray ar1 (cellIndex di) orig s3
            in (# ar1, s4, (# | e | #) #)
-        (# ar1, s3, (# | | kf #) #) ->
+        (# ar1, s3, (# | | (# op, kf #) #) #) ->
           case readAfArray ar1 (cellIndex di) s3 of
             (# s4, ce' #) ->
               let s5 = writeAfArray ar1 (cellIndex di) orig s4
-              in (# ar1, s5, (# | | \ x -> localCell' @ref (kf x) ce' k #) #)
+              in (# ar1, s5, (# | | (# op, \ x -> localCell' @ref (kf x) ce' k #) #) #)
 
 
 {-# INLINE localCell #-}

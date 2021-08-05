@@ -6,6 +6,7 @@ module Control.Af.Internal.Effect
   , STE
   , Cell
   , Escape
+  , Handle
   ) where
 
 
@@ -32,3 +33,5 @@ data STE (st :: *) :: *
 data Cell (cell :: *) (ref :: *) :: *
 
 data Escape (escape :: *) (ref :: *) :: *
+
+data Handle (handle :: [*] -> * -> *) (ref :: *) :: *
