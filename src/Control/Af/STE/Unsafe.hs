@@ -5,6 +5,8 @@ module Control.Af.STE.Unsafe
   , AfEnv (..)
   , unsafeAfEnvError
   , unsafeAfEnvSuccess
+  , unsafeAfEnvBacktrack
+  , unsafeCoerceBacktrack
   , unST
   , AfToST
   , unsafeAfToST
@@ -22,6 +24,8 @@ import Control.Af.Internal.Util
 import GHC.Exts (Any, State#)
 import GHC.ST (ST (..), runST)
 
+import qualified Unsafe.Coerce
+
 
 {-# INLINE withSTE #-}
 withSTE :: forall st a. Af '[STE st] a -> ST st a
@@ -33,9 +37,17 @@ runSTE :: forall a. (forall st. Af '[STE st] a) -> a
 runSTE af = runST (withSTE af)
 
 
+{-# INLINE unsafeCoerceBacktrack #-}
+unsafeCoerceBacktrack ::
+  forall dfs efs dfs' efs' a.
+  (Af dfs Any -> Af efs a) -> Af dfs' Any -> Af efs' a
+unsafeCoerceBacktrack = Unsafe.Coerce.unsafeCoerce
+
+
 data AfEnv s a =
     AfEnvError !(AfArray s) Any
   | AfEnvSuccess !(AfArray s) a
+  | forall dfs efs. AfEnvBacktrack !(AfArray s) (Af dfs Any -> Af efs a)
 
 
 {-# INLINE unsafeAfEnvError #-}
@@ -46,6 +58,14 @@ unsafeAfEnvError ar e = AfEnvError (unsafeCoerceAfArray ar) e
 {-# INLINE unsafeAfEnvSuccess #-}
 unsafeAfEnvSuccess :: forall s t a. AfArray s -> a -> AfEnv t a
 unsafeAfEnvSuccess ar a = AfEnvSuccess (unsafeCoerceAfArray ar) a
+
+
+{-# INLINE unsafeAfEnvBacktrack #-}
+unsafeAfEnvBacktrack ::
+  forall s t dfs efs a.
+  AfArray s -> (Af dfs Any -> Af efs a) -> AfEnv t a
+unsafeAfEnvBacktrack ar k =
+  AfEnvBacktrack (unsafeCoerceAfArray ar) (unsafeCoerceBacktrack k)
 
 
 {-# INLINE unST #-}
@@ -64,8 +84,8 @@ unsafeAfToST sz ar = \ af -> ST $ \ s ->
       (# unsafeCoerceState s', unsafeAfEnvSuccess ar' a #)
     (# ar', s', (# | e | #) #) ->
       (# unsafeCoerceState s', unsafeAfEnvError ar' e #)
-    (# _, _, (# | | _ #) #) ->
-      error "WHAT?"
+    (# ar', s', (# | | k #) #) ->
+      (# unsafeCoerceState s', unsafeAfEnvBacktrack ar' k #)
 
 
 {-# INLINE controlST #-}
@@ -78,6 +98,10 @@ controlST f = Af $ \ sz ar0 s0 ->
       (# unsafeCoerceAfArray ar1, unsafeCoerceState s1, (# | e | #) #)
     (# s1, AfEnvSuccess ar1 a #) ->
       (# unsafeCoerceAfArray ar1, unsafeCoerceState s1, (# a | | #) #)
+    (# s1, AfEnvBacktrack ar1 k #) ->
+      (# unsafeCoerceAfArray ar1
+       , unsafeCoerceState s1
+       , (# | | unsafeCoerceBacktrack k #) #)
 
 
 {-# INLINE liftST #-}

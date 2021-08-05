@@ -13,12 +13,11 @@ import GHC.Exts (inline)
 {-# NOINLINE countdownPut #-}
 countdownPut :: In (State Int) efs => Af efs Int
 countdownPut = do
-  (>>=) (get @Int) (\ n ->
-    if n < 0
-    then pure n
-    else
-      (*>) (put (n - 1)) countdownPut
-   )
+  n <- get @Int
+  if n < 0
+  then pure n
+  else
+    put (n - 1) >> countdownPut
 
 
 {-# NOINLINE runCountdownPut #-}
@@ -32,7 +31,7 @@ countdownExc = do
   n <- get @Int
   if n <= 0
   then throwError "what"
-  else put (n - 1) *> countdownExc
+  else put (n - 1) >> countdownExc
 
 
 {-# NOINLINE runCountdownExc #-}

@@ -51,6 +51,7 @@ library
       src
   default-extensions:
       BangPatterns
+      GADTs
       TypeFamilies
       ScopedTypeVariables
       ConstraintKinds
@@ -79,6 +80,7 @@ executable af-exe
       app
   default-extensions:
       BangPatterns
+      GADTs
       TypeFamilies
       ScopedTypeVariables
       ConstraintKinds
@@ -112,6 +114,7 @@ test-suite af-test
       test
   default-extensions:
       BangPatterns
+      GADTs
       TypeFamilies
       ScopedTypeVariables
       ConstraintKinds
@@ -147,6 +150,7 @@ benchmark atl-bench
       bench
   default-extensions:
       BangPatterns
+      GADTs
       TypeFamilies
       ScopedTypeVariables
       ConstraintKinds

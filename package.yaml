@@ -72,6 +72,7 @@ benchmarks:
 
 default-extensions:
   - BangPatterns
+  - GADTs
   - TypeFamilies
   - ScopedTypeVariables
   - ConstraintKinds

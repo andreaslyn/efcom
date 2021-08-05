@@ -55,6 +55,13 @@ unsafeAfEnvIOSuccess :: forall s a. AfArray s -> a -> AfEnvIO a
 unsafeAfEnvIOSuccess ar a = AfEnvIO (unsafeAfEnvSuccess ar a)
 
 
+{-# INLINE unsafeAfEnvIOBacktrack #-}
+unsafeAfEnvIOBacktrack ::
+  forall s t dfs efs a.
+  AfArray s -> (Af dfs Any -> Af efs a) -> AfEnvIO a
+unsafeAfEnvIOBacktrack ar k = AfEnvIO (unsafeAfEnvBacktrack ar k)
+
+
 type AfToIO es = forall a. Af es a -> IO (AfEnvIO a)
 
 
@@ -66,8 +73,8 @@ unsafeAfToIO sz ar = \ af -> GHC.IO $ \ s ->
       (# unsafeCoerceState s', unsafeAfEnvIOSuccess ar' a #)
     (# ar', s', (# | e | #) #) ->
       (# unsafeCoerceState s', unsafeAfEnvIOError ar' e #)
-    (# _, _, (# | | _ #) #) ->
-      error "WHAT?"
+    (# ar', s', (# | | k #) #) ->
+      (# unsafeCoerceState s', unsafeAfEnvIOBacktrack ar' k #)
 
 
 {-# INLINE unsafeControlIO #-}
@@ -80,6 +87,10 @@ unsafeControlIO f = Af $ \ sz ar0 s0 ->
       (# unsafeCoerceAfArray ar1, unsafeCoerceState s1, (# a | | #) #)
     (# s1, AfEnvIO (AfEnvError ar1 e) #) ->
       (# unsafeCoerceAfArray ar1, unsafeCoerceState s1, (# | e | #) #)
+    (# s1, AfEnvIO (AfEnvBacktrack ar1 k) #) ->
+      (# unsafeCoerceAfArray ar1
+       , unsafeCoerceState s1
+       , (# | | unsafeCoerceBacktrack k #) #)
 
 
 {-# INLINE unsafeLiftIO #-}
