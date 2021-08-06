@@ -47,11 +47,9 @@ tests:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
-    - -O2
-    - -fspec-constr-keen
-    - -fdicts-strict
     dependencies:
     - af
+    - hspec
 
 benchmarks:
   atl-bench:

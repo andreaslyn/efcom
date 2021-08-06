@@ -1,9 +1,12 @@
-import CellTest
-import EscapeTest
+import Test.Hspec
+  ( hspec
+  , describe
+  )
+import CellTest.Test
+import EscapeTest.Test
+
 
 main :: IO ()
-main = do
-  putStrLn "\nCell Test\n"
-  cellTest
-  putStrLn "\n\nEscape Test\n"
-  escapeTest
+main = hspec $ do
+  describe "Cell Test" cellTest
+  describe "Escape Test" escapeTest
