@@ -17,7 +17,7 @@ import Unsafe.Coerce (unsafeCoerce)
 
 newtype Af (efs :: [*]) (a :: *) = Af
   { unAf ::
-      forall dfs b s.
+      forall dfs s.
       I16Pair -> AfArray s -> State# s ->
       (# AfArray s
        , State# s

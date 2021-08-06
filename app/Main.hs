@@ -83,22 +83,6 @@ loopWithST = do
         (0 :: Int) (\i s -> return (i, s)))
 
 
-{-# NOINLINE countdownPut #-}
-countdownPut :: In (State Int) efs => Af efs Int
-countdownPut = do
-  (>>=) (get @Int) (\ n ->
-    if n < 0
-    then pure n
-    else
-      (*>) (put (n - 1)) countdownPut
-   )
-
-
-{-# NOINLINE runCountdownPut #-}
-runCountdownPut :: Int -> (Int, Int)
-runCountdownPut n = runAfPure $ runState countdownPut n
-
-
 data Nondet (efs :: [*]) (a :: *) =
   Empty | Choose (Af efs a) (Af efs a)
 
@@ -137,16 +121,16 @@ testNondet = do
           Left _ -> return 100
           Right y -> return y
   b2 <- get @Bool
-  y <- transaction @Int (get @Int >>= \ i -> put (i+1) >> backtrackHandle @() (Choose (put @Bool (not b2) >> get @Int) (backtrackHandle @() (Choose (backtrackHandle @() Empty) (get @Int >>= \ i -> put (i+1) >> get @Int))))) 2
+  y <- transaction @Int (get @Int >>= \ i -> put (i+1) >> backtrackHandle @() (Choose (put @Bool (not b2) >> get @Int) (backtrackHandle @() (Choose (backtrackHandle @() Empty) (get @Int >>= \ j -> put (j+1) >> get @Int))))) 2
   s <- get @Int
   return (x, y, s)
 
 
 main :: IO ()
 main = do
+  let _ = loopWithST @Int
   x <- withIOE (runState @Int (runHandle @() (runState @Bool testNondet False) nondetHandler) 1)
   print x
-  --print (runCountdownPut 1000000)
 {-
   print $ pureAf $
     (runEscape @() @String

@@ -9,7 +9,6 @@ module Control.Af.Handle
 
 import Control.Af.Internal.Effect
 import Control.Af.Internal.AfArray
-import Control.Af.Internal.Util
 import Control.Af.Internal.I16Pair
 import Control.Af.Internal.Af
 import Control.Af.Internal.In

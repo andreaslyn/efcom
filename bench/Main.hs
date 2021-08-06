@@ -52,8 +52,8 @@ main :: IO ()
 main = C.defaultMain
   --[ countdownPut
   --[ countdownExc
-  [ readWriteNoError
-  --[ countdownPut
-  --, countdownExc
-  --, readWriteNoError
+  --[ readWriteNoError
+  [ countdownPut
+  , countdownExc
+  , readWriteNoError
   ]

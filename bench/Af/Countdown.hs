@@ -7,8 +7,6 @@ import Control.Af
 import Control.Af.State
 import Control.Af.Error
 
-import GHC.Exts (inline)
-
 
 {-# NOINLINE countdownPut #-}
 countdownPut :: In (State Int) efs => Af efs Int

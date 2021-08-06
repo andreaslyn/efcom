@@ -8,7 +8,6 @@ import Control.Af.IOE.Unsafe
   , withIOERunSTE
   , AfEnvIO (..)
   , AfToIO
-  , controlIO
   , transIO
   , liftIO
   )
