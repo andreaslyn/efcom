@@ -6,6 +6,8 @@ import Control.Af.IOE
 import Control.Af.State
 import Control.Af.Handle
 
+import Control.Exception (Exception, try, throwIO, AssertionFailed (..))
+
 import Data.STRef (STRef, newSTRef, writeSTRef, readSTRef)
 
 
@@ -109,14 +111,31 @@ nondetHandler (Choose m1 m2) h = do
   return (n1 ++ n2)
 
 
+mytry :: 
+  forall e efs a.
+  Exception e =>
+  In IOE efs =>
+  Af efs a -> Af efs (Either e a)
+mytry =
+  transIO $ \ un io -> do
+    x <- try @e io
+    case x of
+      Right v -> return (fmap Right v)
+      Left e -> return (fmap (\_ -> Left e) un)
+
+
 testNondet ::
   In (Handle Nondet ()) efs =>
   In (State Int) efs =>
   In (State Bool) efs =>
+  In IOE efs =>
   Af efs (Int, Int, Int)
 testNondet = do
   b1 <- get @Bool
-  x <- backtrackHandle @() (Choose (put @Bool (not b1) >> get @Int) (put @Int 1 >> fmap (1+) (get @Int)))
+  x0 <- mytry @AssertionFailed (liftIO (putStrLn "hello") >> backtrackHandle @() (Choose (put @Bool (not b1) >> get @Int >> liftIO (throwIO (AssertionFailed "failed"))) (put @Int 1 >> fmap (1+) (get @Int))))
+  x <- case x0 of
+          Left _ -> return 100
+          Right y -> return y
   b2 <- get @Bool
   y <- transaction @Int (get @Int >>= \ i -> put (i+1) >> backtrackHandle @() (Choose (put @Bool (not b2) >> get @Int) (backtrackHandle @() (Choose (backtrackHandle @() Empty) (get @Int >>= \ i -> put (i+1) >> get @Int))))) 2
   s <- get @Int
@@ -125,7 +144,8 @@ testNondet = do
 
 main :: IO ()
 main = do
-  print (runAfPure (runState @Int (runHandle @() (runState @Bool testNondet False) nondetHandler) 1))
+  x <- withIOE (runState @Int (runHandle @() (runState @Bool testNondet False) nondetHandler) 1)
+  print x
   --print (runCountdownPut 1000000)
 {-
   print $ pureAf $

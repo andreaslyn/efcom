@@ -9,5 +9,6 @@ import Control.Af.IOE.Unsafe
   , AfEnvIO (..)
   , AfToIO
   , controlIO
+  , transIO
   , liftIO
   )

@@ -50,6 +50,12 @@ data AfEnv s a =
   | forall dfs efs. AfEnvBacktrack !(AfArray s) Any (Af dfs Any -> Af efs a)
 
 
+instance Functor (AfEnv s) where
+  fmap _ (AfEnvError ar e) = AfEnvError ar e
+  fmap f (AfEnvSuccess ar a) = AfEnvSuccess ar (f a)
+  fmap _ (AfEnvBacktrack ar op k) = Unsafe.Coerce.unsafeCoerce (AfEnvBacktrack ar op k)
+
+
 {-# INLINE unsafeAfEnvError #-}
 unsafeAfEnvError :: forall s t a. AfArray s -> Any -> AfEnv t a
 unsafeAfEnvError ar e = AfEnvError (unsafeCoerceAfArray ar) e

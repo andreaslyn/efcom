@@ -89,3 +89,4 @@ default-extensions:
   - UnboxedTuples
   - UnboxedSums
   - UnliftedNewtypes
+  - GeneralizedNewtypeDeriving

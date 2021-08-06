@@ -13,6 +13,7 @@ module Control.Af.IOE.Unsafe
   , unsafeControlIO
   , unsafeLiftIO
   , controlIO
+  , transIO
   , liftIO
   ) where
 
@@ -31,6 +32,8 @@ import qualified GHC.IO as GHC
 
 import Control.Monad.IO.Class (MonadIO (..))
 
+import Unsafe.Coerce (unsafeCoerce)
+
 
 {-# INLINE withIOE #-}
 withIOE :: forall a. Af '[IOE] a -> IO a
@@ -43,6 +46,7 @@ withIOERunSTE af = GHC.IO (runAf# af)
 
 
 newtype AfEnvIO a = AfEnvIO (AfEnv GHC.RealWorld a)
+  deriving Functor
 
 
 {-# INLINE unsafeAfEnvIOError #-}
@@ -93,6 +97,23 @@ unsafeControlIO f = Af $ \ sz ar0 s0 ->
        , (# | | (# op, unsafeCoerceBacktrack k #) #) #)
 
 
+{-# INLINE unsafeTransIO #-}
+unsafeTransIO ::
+  forall es a b.
+  (AfEnvIO () -> IO (AfEnvIO a) -> IO (AfEnvIO b)) ->
+  Af es a -> Af es b
+unsafeTransIO f af = Af $ \ sz ar0 s0 ->
+  case GHC.unIO (f (unsafeAfEnvIOSuccess ar0 ()) (unsafeAfToIO sz ar0 af)) (unsafeCoerceState s0) of
+    (# s1, AfEnvIO (AfEnvSuccess ar1 a) #) ->
+      (# unsafeCoerceAfArray ar1, unsafeCoerceState s1, (# a | | #) #)
+    (# s1, AfEnvIO (AfEnvError ar1 e) #) ->
+      (# unsafeCoerceAfArray ar1, unsafeCoerceState s1, (# | e | #) #)
+    (# s1, AfEnvIO (AfEnvBacktrack ar1 op k) #) ->
+      (# unsafeCoerceAfArray ar1
+       , unsafeCoerceState s1
+       , (# | | (# op, unsafeCoerceBacktrack (unsafeTransIO f . unsafeCoerce k) #) #) #)
+
+
 {-# INLINE unsafeLiftIO #-}
 unsafeLiftIO :: forall es a. IO a -> Af es a
 unsafeLiftIO io = Af $ \ _ ar s0 ->
@@ -105,6 +126,14 @@ controlIO ::
   forall es a. In IOE es =>
   (AfToIO es -> IO (AfEnvIO a)) -> Af es a
 controlIO = unsafeControlIO
+
+
+{-# INLINE transIO #-}
+transIO ::
+  forall es a b. In IOE es =>
+  (AfEnvIO () -> IO (AfEnvIO a) -> IO (AfEnvIO b)) ->
+  Af es a -> Af es b
+transIO = unsafeTransIO
 
 
 instance In IOE es => MonadIO (Af es) where
