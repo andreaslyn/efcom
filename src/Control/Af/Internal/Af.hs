@@ -26,16 +26,12 @@ newtype Af (efs :: [*]) (a :: *) = Af
   }
 
 
-{-# NOINLINE fmapAf' #-}
-fmapAf' :: forall efs a b. (a -> b) -> Af efs a -> Af efs b
-fmapAf' f af = Af $ \ sz ar s ->
-  case unAf af sz ar s of
-    (# ar', s', (# a | | #) #) ->
-      (# ar', s', (# f a | | #) #)
-    (# ar', s', (# | e | #) #) ->
-      (# ar', s', (# | e | #) #)
-    (# ar', s', (# | | (# op, k #) #) #) ->
-      (# ar', s', (# | | (# op, \ x -> fmapAf f (k x) #) #) #)
+{-# NOINLINE fmapAfCont #-}
+fmapAfCont ::
+  forall dfs efs a b.
+  (Af dfs Any -> Af efs a) -> (a -> b) ->
+  Af dfs Any -> Af efs b
+fmapAfCont k f x = fmapAf f (k x)
 
 
 {-# INLINE fmapAf #-}
@@ -48,7 +44,7 @@ fmapAf f0 af = Af $ \ sz ar s ->
     (# ar', s', (# | e | #) #) ->
       (# ar', s', (# | e | #) #)
     (# ar', s', (# | | (# op, k #) #) #) ->
-      (# ar', s', (# | | (# op, \ x -> fmapAf' f (k x) #) #) #)
+      (# ar', s', (# | | (# op, fmapAfCont k f #) #) #)
 
 
 instance Functor (Af efs) where
@@ -59,29 +55,24 @@ instance Functor (Af efs) where
   (<$) = fmapAf . const
 
 
-{-# NOINLINE apAf' #-}
-apAf' :: forall efs a b. Af efs (a -> b) -> Af efs a -> Af efs b
-apAf' ff af = Af $ \ sz ar s ->
-  case unAf ff sz ar s of
-    (# ar1, s1, (# f | | #) #) ->
-        unAf (fmapAf f af) sz ar1 s1
-    (# ar1, s1, (# | e | #) #) ->
-      (# ar1, s1, (# | e | #) #)
-    (# ar1, s1, (# | | (# op, k #) #) #) ->
-      (# ar1, s1, (# | | (# op, \ x -> apAf (k x) af #) #) #)
+{-# NOINLINE apAfCont #-}
+apAfCont ::
+  forall dfs efs a b.
+  (Af dfs Any -> Af efs (a -> b)) -> Af efs a ->
+  Af dfs Any -> Af efs b
+apAfCont k af x = apAf (k x) af
 
 
 {-# INLINE apAf #-}
 apAf :: forall efs a b. Af efs (a -> b) -> Af efs a -> Af efs b
-apAf ff af0 = Af $ \ sz ar s ->
-  let af = af0 in
+apAf ff af = Af $ \ sz ar s ->
   case unAf ff sz ar s of
     (# ar1, s1, (# f | | #) #) ->
         unAf (fmapAf f af) sz ar1 s1
     (# ar1, s1, (# | e | #) #) ->
       (# ar1, s1, (# | e | #) #)
     (# ar1, s1, (# | | (# op, k #) #) #) ->
-      (# ar1, s1, (# | | (# op, \ x -> apAf' (k x) af #) #) #)
+      (# ar1, s1, (# | | (# op, apAfCont k af #) #) #)
 
 
 instance Applicative (Af efs) where
@@ -99,29 +90,25 @@ instance Applicative (Af efs) where
   af1 <* af2 = bindAf af1 (<$ af2)
 
 
-{-# NOINLINE bindAf' #-}
-bindAf' :: forall efs a b. Af efs a -> (a -> Af efs b) -> Af efs b
-bindAf' mf ff = Af $ \ sz ar s ->
-  case unAf mf sz ar s of
-    (# ar', s', (# a | | #) #) ->
-      unAf (ff a) sz ar' s'
-    (# ar', s', (# | e | #) #) ->
-      (# ar', s', (# | e | #) #)
-    (# ar', s', (# | | (# op, k #) #) #) ->
-      (# ar', s', (# | | (# op, \ x -> bindAf (k x) ff #) #) #)
+{-# NOINLINE bindAfCont #-}
+bindAfCont ::
+  forall dfs efs a b.
+  (Af dfs Any -> Af efs a) -> (a -> Af efs b) ->
+  Af dfs Any -> Af efs b
+bindAfCont k ff x = bindAf (k x) ff
+
 
 
 {-# INLINE bindAf #-}
 bindAf :: forall efs a b. Af efs a -> (a -> Af efs b) -> Af efs b
-bindAf mf ff0 = Af $ \ sz ar s ->
-  let ff = ff0 in
+bindAf mf ff = Af $ \ sz ar s ->
   case unAf mf sz ar s of
     (# ar', s', (# a | | #) #) ->
       unAf (ff a) sz ar' s'
     (# ar', s', (# | e | #) #) ->
       (# ar', s', (# | e | #) #)
     (# ar', s', (# | | (# op, k #) #) #) ->
-      (# ar', s', (# | | (# op, \ x -> bindAf' (k x) ff #) #) #)
+      (# ar', s', (# | | (# op, bindAfCont k ff #) #) #)
 
 
 instance Monad (Af efs) where
