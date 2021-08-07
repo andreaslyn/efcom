@@ -14,8 +14,7 @@ countdownPut = do
   n <- get @Int
   if n < 0
   then pure n
-  else
-    put (n - 1) >> countdownPut
+  else put (n - 1) *> countdownPut
 
 
 {-# NOINLINE runCountdownPut #-}
@@ -29,7 +28,7 @@ countdownExc = do
   n <- get @Int
   if n <= 0
   then throwError "what"
-  else put (n - 1) >> countdownExc
+  else put (n - 1) *> countdownExc
 
 
 {-# NOINLINE runCountdownExc #-}
