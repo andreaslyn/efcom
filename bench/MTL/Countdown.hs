@@ -21,7 +21,7 @@ runCountdownPut :: Int -> (Int, Int)
 runCountdownPut n = runState countdownPut n
 
 
-{-# NOINLINE countdownExc #-}
+{-# INLINABLE countdownExc #-}
 countdownExc :: StateT Int (Except String) Int
 countdownExc = do
   n <- get @Int
@@ -30,6 +30,6 @@ countdownExc = do
   else (put $! n - 1) *> countdownExc
 
 
-{-# NOINLINE runCountdownExc #-}
+{-# INLINABLE runCountdownExc #-}
 runCountdownExc :: Int -> Either String (Int, Int)
 runCountdownExc n = runExcept (runStateT countdownExc n)

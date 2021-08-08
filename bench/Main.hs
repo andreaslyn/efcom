@@ -8,6 +8,8 @@ import qualified Af.Countdown as Af
 import qualified MTL.ReadWriteNoError as MTL
 import qualified MTL.Countdown as MTL
 
+import qualified Pure.Countdown as Pure
+
 
 readWriteNoError :: C.Benchmark
 readWriteNoError =
@@ -26,10 +28,13 @@ countdownPut :: C.Benchmark
 countdownPut =
   let n = 1000000 in
   C.bgroup "CountdownPut"
-  [ C.bench "af" $ C.nf Af.runCountdownPut n
-  , C.bench "mtl" $ C.nf MTL.runCountdownPut n
+  [ C.bench "pure" $ C.nf Pure.runCountdownPut n
   , C.bench "af" $ C.nf Af.runCountdownPut n
   , C.bench "mtl" $ C.nf MTL.runCountdownPut n
+  , C.bench "pure" $ C.nf Pure.runCountdownPut n
+  , C.bench "af" $ C.nf Af.runCountdownPut n
+  , C.bench "mtl" $ C.nf MTL.runCountdownPut n
+  , C.bench "pure" $ C.nf Pure.runCountdownPut n
   , C.bench "af" $ C.nf Af.runCountdownPut n
   , C.bench "mtl" $ C.nf MTL.runCountdownPut n
   ]
@@ -39,10 +44,13 @@ countdownExc :: C.Benchmark
 countdownExc =
   let n = 1000000 in
   C.bgroup "CountdownExc"
-  [ C.bench "af" $ C.nf Af.runCountdownExc n
-  , C.bench "mtl" $ C.nf MTL.runCountdownExc n
+  [ C.bench "pure" $ C.nf Pure.runCountdownExc n
   , C.bench "af" $ C.nf Af.runCountdownExc n
   , C.bench "mtl" $ C.nf MTL.runCountdownExc n
+  , C.bench "pure" $ C.nf Pure.runCountdownExc n
+  , C.bench "af" $ C.nf Af.runCountdownExc n
+  , C.bench "mtl" $ C.nf MTL.runCountdownExc n
+  , C.bench "pure" $ C.nf Pure.runCountdownExc n
   , C.bench "af" $ C.nf Af.runCountdownExc n
   , C.bench "mtl" $ C.nf MTL.runCountdownExc n
   ]

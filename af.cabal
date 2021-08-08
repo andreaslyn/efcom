@@ -145,6 +145,7 @@ benchmark atl-bench
       Af.ReadWriteNoError
       MTL.Countdown
       MTL.ReadWriteNoError
+      Pure.Countdown
       Paths_af
   hs-source-dirs:
       bench
