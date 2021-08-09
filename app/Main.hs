@@ -1,3 +1,5 @@
+module Main where
+
 import Control.Af
 import Control.Af.Cell
 import Control.Af.Escape
@@ -87,7 +89,7 @@ data Nondet (efs :: [*]) (a :: *) =
   Empty | Choose (Af efs a) (Af efs a)
 
 
-nondetHandler :: forall efs a. Handler [] Nondet efs a
+nondetHandler :: forall efs a. Handler Nondet efs [a]
 nondetHandler Empty _ = return []
 nondetHandler (Choose m1 m2) h = do
   n1 <- h m1
@@ -126,11 +128,46 @@ testNondet = do
   return (x, y, s)
 
 
+data ContFail :: [*] -> * -> * where
+  ContFail :: forall (efs :: [*]) (a :: *). ContFail efs a
+
+
+contFailHandler :: forall efs a. Handler ContFail efs (Maybe a)
+contFailHandler ContFail _ = return Nothing
+
+
+contStateCatchInternalError ::
+  forall efs.
+  AllIn '[Cell Int (), Handle ContFail ()] efs =>
+  Af efs Int
+contStateCatchInternalError = do
+  writeCell @() (1 :: Int)
+  m <- delimitHandle @() (do
+          writeCell @() (2 :: Int)
+          backtrackHandle @() ContFail
+        ) Just contFailHandler
+  case m of
+    Nothing -> readCell @()
+    Just _ -> error "what?"
+
+
 main :: IO ()
 main = do
+  print $ runAfPure $
+    runCell @() @Int
+          (runHandle @() @ContFail contStateCatchInternalError
+            Just contFailHandler)
+       0 (\ a s -> return (a, s))
+  print $ runAfPure $
+    runHandle @() @ContFail
+          (runCell @() @Int contStateCatchInternalError
+              0 (\ a s -> return (a, s)))
+       Just contFailHandler
+{-
   let _ = loopWithST @Int
-  x <- withIOE (runState @Int (runHandle @() (runState @Bool testNondet False) nondetHandler) 1)
+  x <- withIOE (runState @Int (runHandle @() (runState @Bool testNondet False) return nondetHandler) 1)
   print x
+-}
 {-
   print $ pureAf $
     (runEscape @() @String

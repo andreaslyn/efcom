@@ -65,7 +65,8 @@ apAfCont k af x = apAf (k x) af
 
 {-# INLINE apAf #-}
 apAf :: forall efs a b. Af efs (a -> b) -> Af efs a -> Af efs b
-apAf ff af = Af $ \ sz ar s ->
+apAf ff af0 = Af $ \ sz ar s ->
+  let af = af0 in
   case unAf ff sz ar s of
     (# ar1, s1, (# f | | #) #) ->
         unAf (fmapAf f af) sz ar1 s1
@@ -85,7 +86,6 @@ instance Applicative (Af efs) where
   {-# INLINE (*>) #-}
   af1 *> af2 = bindAf af1 (\ _ -> af2)
 
-
   {-# INLINE (<*) #-}
   af1 <* af2 = bindAf af1 (<$ af2)
 
@@ -98,10 +98,10 @@ bindAfCont ::
 bindAfCont k ff x = bindAf (k x) ff
 
 
-
 {-# INLINE bindAf #-}
 bindAf :: forall efs a b. Af efs a -> (a -> Af efs b) -> Af efs b
-bindAf mf ff = Af $ \ sz ar s ->
+bindAf mf ff0 = Af $ \ sz ar s ->
+  let ff = ff0 in
   case unAf mf sz ar s of
     (# ar', s', (# a | | #) #) ->
       unAf (ff a) sz ar' s'

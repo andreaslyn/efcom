@@ -118,10 +118,16 @@ delimitCell' af ce k g = Af $ \ sz ar0 s0 ->
               let s5 = writeAfArray ar1 (cellIndex di) orig s4
               in (# ar1, s5, (# | e | #) #)
         (# ar1, s3, (# | | (# op, kf #) #) #) ->
-          case readAfArray ar1 (cellIndex di) s3 of
-            (# s4, ce' #) ->
-              let s5 = writeAfArray ar1 (cellIndex di) orig s4
-              in (# ar1, s5, (# | | (# op, \x -> delimitCell' @ref (kf x) ce' k g #) #) #)
+           let !(# s4, c #) = readAfArray @Int ar1 0# s3 in
+           case unI# c GHC.<=# escapeDepth di of
+            1# -> -- Internal backtrack.
+              let !(# s5, ce' #) = readAfArray ar1 (cellIndex di) s4
+                  s6 = writeAfArray ar1 (cellIndex di) (g orig ce') s5
+              in (# ar1, s6, (# | | (# op, \x -> delimitCell' @ref (kf x) ce' k g #) #) #)
+            _ ->  -- External backtrack.
+              let !(# s5, ce' #) = readAfArray ar1 (cellIndex di) s4
+                  s6 = writeAfArray ar1 (cellIndex di) orig s5
+              in (# ar1, s6, (# | | (# op, \x -> delimitCell' @ref (kf x) ce' k g #) #) #)
 
 
 {-# INLINE delimitCell #-}
