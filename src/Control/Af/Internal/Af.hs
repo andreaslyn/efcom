@@ -22,7 +22,7 @@ newtype Af (efs :: [*]) (a :: *) = Af
       I16Pair -> AfArray s -> State# s ->
       (# AfArray s
        , State# s
-       , (# a | Any | (# Any, Af dfs Any -> Af efs a #) #) #)
+       , (# a | (# Any | (# Any, Af dfs Any -> Af efs a #) #) #) #)
   }
 
 
@@ -39,12 +39,12 @@ fmapAf :: forall efs a b. (a -> b) -> Af efs a -> Af efs b
 fmapAf f0 af = Af $ \ sz ar s ->
   let f = f0 in
   case unAf af sz ar s of
-    (# ar', s', (# a | | #) #) ->
-      (# ar', s', (# f a | | #) #)
-    (# ar', s', (# | e | #) #) ->
-      (# ar', s', (# | e | #) #)
-    (# ar', s', (# | | (# op, k #) #) #) ->
-      (# ar', s', (# | | (# op, fmapAfCont k f #) #) #)
+    (# ar', s', (# a | #) #) ->
+      (# ar', s', (# f a | #) #)
+    (# ar', s', (# | (# e | #) #) #) ->
+      (# ar', s', (# | (# e | #) #) #)
+    (# ar', s', (# | (# | (# op, k #) #) #) #) ->
+      (# ar', s', (# | (# | (# op, fmapAfCont k f #) #) #) #)
 
 
 instance Functor (Af efs) where
@@ -68,17 +68,17 @@ apAf :: forall efs a b. Af efs (a -> b) -> Af efs a -> Af efs b
 apAf ff af0 = Af $ \ sz ar s ->
   let af = af0 in
   case unAf ff sz ar s of
-    (# ar1, s1, (# f | | #) #) ->
+    (# ar1, s1, (# f | #) #) ->
         unAf (fmapAf f af) sz ar1 s1
-    (# ar1, s1, (# | e | #) #) ->
-      (# ar1, s1, (# | e | #) #)
-    (# ar1, s1, (# | | (# op, k #) #) #) ->
-      (# ar1, s1, (# | | (# op, apAfCont k af #) #) #)
+    (# ar1, s1, (# | (# e | #) #) #) ->
+      (# ar1, s1, (# | (# e | #) #) #)
+    (# ar1, s1, (# | (# | (# op, k #) #) #) #) ->
+      (# ar1, s1, (# | (# | (# op, apAfCont k af #) #) #) #)
 
 
 instance Applicative (Af efs) where
   {-# INLINE pure #-}
-  pure a = Af $ \ _ ar s -> (# ar, s, (# a | | #) #)
+  pure a = Af $ \ _ ar s -> (# ar, s, (# a | #) #)
 
   {-# INLINE (<*>) #-}
   (<*>) = apAf
@@ -103,12 +103,12 @@ bindAf :: forall efs a b. Af efs a -> (a -> Af efs b) -> Af efs b
 bindAf mf ff0 = Af $ \ sz ar s ->
   let ff = ff0 in
   case unAf mf sz ar s of
-    (# ar', s', (# a | | #) #) ->
+    (# ar', s', (# a | #) #) ->
       unAf (ff a) sz ar' s'
-    (# ar', s', (# | e | #) #) ->
-      (# ar', s', (# | e | #) #)
-    (# ar', s', (# | | (# op, k #) #) #) ->
-      (# ar', s', (# | | (# op, bindAfCont k ff #) #) #)
+    (# ar', s', (# | (# e | #) #) #) ->
+      (# ar', s', (# | (# e | #) #) #)
+    (# ar', s', (# | (# | (# op, k #) #) #) #) ->
+      (# ar', s', (# | (# | (# op, bindAfCont k ff #) #) #) #)
 
 
 instance Monad (Af efs) where
@@ -133,12 +133,10 @@ runAf# af s0 =
   case initialAfArray s0 of
     (# s1, ar #) ->
       case unAf af (makeI16Pair 1# 0#) ar s1 of
-        (# _, s2, (# a | | #) #) ->
+        (# _, s2, (# a | #) #) ->
           (# s2, a #)
-        (# _, s2, (# | _ | #) #) ->
-          (# s2, error "unhandled Af escape effect" #)
-        (# _, s2, (# | | (# _, _ #) #) #) ->
-          (# s2, error "unhandled Af backtrack effect" #)
+        (# _, s2, (# | _ #) #) ->
+          (# s2, error "unhandled Af (escape/backtracking) effect" #)
 
 
 {-# INLINE runAfPure #-}

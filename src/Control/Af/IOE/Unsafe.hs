@@ -71,11 +71,11 @@ type AfToIO es = forall a. Af es a -> IO (AfEnvIO a)
 unsafeAfToIO :: forall es s. I16Pair -> AfArray s -> AfToIO es
 unsafeAfToIO sz ar = \ af -> GHC.IO $ \ s ->
   case unAf af sz ar (unsafeCoerceState s) of
-    (# ar', s', (# a | | #) #) ->
+    (# ar', s', (# a | #) #) ->
       (# unsafeCoerceState s', unsafeAfEnvIOSuccess ar' a #)
-    (# ar', s', (# | e | #) #) ->
+    (# ar', s', (# | (# e | #) #) #) ->
       (# unsafeCoerceState s', unsafeAfEnvIOError ar' e #)
-    (# ar', s', (# | | (# op, k #) #) #) ->
+    (# ar', s', (# | (# | (# op, k #) #) #) #) ->
       (# unsafeCoerceState s', unsafeAfEnvIOBacktrack ar' op k #)
 
 
@@ -87,20 +87,20 @@ unsafeTransIO ::
 unsafeTransIO f af = Af $ \ sz ar0 s0 ->
   case GHC.unIO (f (unsafeAfEnvIOSuccess ar0 ()) (unsafeAfToIO sz ar0 af)) (unsafeCoerceState s0) of
     (# s1, AfEnvIO (AfEnvSuccess ar1 a) #) ->
-      (# unsafeCoerceAfArray ar1, unsafeCoerceState s1, (# a | | #) #)
+      (# unsafeCoerceAfArray ar1, unsafeCoerceState s1, (# a | #) #)
     (# s1, AfEnvIO (AfEnvError ar1 e) #) ->
-      (# unsafeCoerceAfArray ar1, unsafeCoerceState s1, (# | e | #) #)
+      (# unsafeCoerceAfArray ar1, unsafeCoerceState s1, (# | (# e | #) #) #)
     (# s1, AfEnvIO (AfEnvBacktrack ar1 op k) #) ->
       (# unsafeCoerceAfArray ar1
        , unsafeCoerceState s1
-       , (# | | (# op, unsafeCoerceBacktrack (unsafeTransIO f . unsafeCoerce k) #) #) #)
+       , (# | (# | (# op, unsafeCoerceBacktrack (unsafeTransIO f . unsafeCoerce k) #) #) #) #)
 
 
 {-# INLINE unsafeLiftIO #-}
 unsafeLiftIO :: forall es a. IO a -> Af es a
 unsafeLiftIO io = Af $ \ _ ar s0 ->
   let !(# s1, a #) = GHC.unIO io (unsafeCoerceState s0)
-  in (# ar, unsafeCoerceState s1, (# a | | #) #)
+  in (# ar, unsafeCoerceState s1, (# a | #) #)
 
 
 -- THIS IS NOT SAFE.

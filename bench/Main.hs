@@ -48,12 +48,26 @@ countdownExc =
   ]
 
 
+countdownCountupExc :: C.Benchmark
+countdownCountupExc =
+  let n = 1000000 in
+  C.bgroup "CountdownCountupExc"
+  [ C.bench "af" $ C.nf Af.runCountdownCountupExc n
+  , C.bench "mtl" $ C.nf MTL.runCountdownCountupExc n
+  , C.bench "af" $ C.nf Af.runCountdownCountupExc n
+  , C.bench "mtl" $ C.nf MTL.runCountdownCountupExc n
+  , C.bench "af" $ C.nf Af.runCountdownCountupExc n
+  , C.bench "mtl" $ C.nf MTL.runCountdownCountupExc n
+  ]
+
+
 main :: IO ()
 main = C.defaultMain
   --[ countdownPut
   --[ countdownExc
-  [ readWriteNoError
-  --[ countdownPut
-  --, countdownExc
-  --, readWriteNoError
+  --[ readWriteNoError
+  [ countdownCountupExc
+  , countdownPut
+  , countdownExc
+  , readWriteNoError
   ]

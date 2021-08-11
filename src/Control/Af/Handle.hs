@@ -34,13 +34,13 @@ doRunHandle' ::
   Af (Handle ha ref : efs) a -> (a -> r) -> Handler ha efs r -> Af efs r
 doRunHandle' af ret h = Af $ \ sz ar0 s0 ->
   case unAf af (addSndI16Pair sz 1#) ar0 s0 of
-    (# ar1, s1, (# a | | #) #) ->
-      (# ar1, s1, (# ret a | | #) #)
-    (# ar1, s1, (# | e | #) #) ->
+    (# ar1, s1, (# a | #) #) ->
+      (# ar1, s1, (# ret a | #) #)
+    (# ar1, s1, (# | (# e | #) #) #) ->
       let !(# s2, i #) = readAfArray @Int ar1 0# s1
           s3 = strictWriteAfArray ar1 0# (i - 1) s2
-      in (# ar1, s3, (# | e | #) #)
-    (# ar1, s1, (# | | (# op, k #) #) #) ->
+      in (# ar1, s3, (# | (# e | #) #) #)
+    (# ar1, s1, (# | (# | (# op, k #) #) #) #) ->
       case readAfArray @Int ar1 0# s1 of
         (# s2, i #) ->
           if i == 1
@@ -48,7 +48,7 @@ doRunHandle' af ret h = Af $ \ sz ar0 s0 ->
             unAf (h (unsafeCoerce op) (\ x -> doRunHandle' (k x) ret h)) sz ar1 s2
           else
             let s3 = strictWriteAfArray ar1 0# (i - 1) s2
-            in (# ar1, s3, (# | | (# op, \x -> doRunHandle' (k x) ret h #) #) #)
+            in (# ar1, s3, (# | (# | (# op, \x -> doRunHandle' (k x) ret h #) #) #) #)
 
 
 {-# INLINE doRunHandle #-}
@@ -77,11 +77,11 @@ delimitHandle' af ret h = Af $ \ sz ar0 s0 ->
   case copyFromAfArray ar0 (cellIndex di) (fstI16Pair sz) s0 of
     (# s1, backup #) ->
       case unAf af sz ar0 s1 of
-        (# ar1, s2, (# a | | #) #) ->
-          (# ar1, s2, (# ret a | | #) #)
-        (# ar1, s2, (# | e | #) #) ->
-          (# ar1, s2, (# | e | #) #)
-        (# ar1, s2, (# | | (# op, k #) #) #) ->
+        (# ar1, s2, (# a | #) #) ->
+          (# ar1, s2, (# ret a | #) #)
+        (# ar1, s2, (# | (# e | #) #) #) ->
+          (# ar1, s2, (# | (# e | #) #) #)
+        (# ar1, s2, (# | (# | (# op, k #) #) #) #) ->
           case readAfArray @Int ar1 0# s2 of
             (# s3, d #) ->
               case unI# d GHC.==# escapeDepth di of
@@ -89,7 +89,7 @@ delimitHandle' af ret h = Af $ \ sz ar0 s0 ->
                   let s4 = copyToAfArray backup ar1 (cellIndex di) s3
                   in unAf (h (unsafeCoerce op) (\ x -> delimitHandle' @ref (k x) ret h)) sz ar1 s4
                 _ ->
-                  (# ar1, s3, (# | | (# op, \ x -> delimitHandle' @ref (k x) ret h #) #) #)
+                  (# ar1, s3, (# | (# | (# op, \ x -> delimitHandle' @ref (k x) ret h #) #) #) #)
 
 
 {-# INLINE delimitHandle #-}
@@ -102,11 +102,11 @@ delimitHandle ::
 delimitHandle af ret h = inline (delimitHandle' @ref af ret h)
 
 
-
+{-# INLINE backtrackHandle #-}
 backtrackHandle :: 
   forall ref ha efs a. In (Handle ha ref) efs =>
   ha efs a -> Af efs a
 backtrackHandle op = Af $ \ sz ar s ->
   let di = cellIndexEscapeDepth @(Handle ha ref) @efs sz
       s' = strictWriteAfArray @Int ar 0# (GHC.I# (escapeDepth di)) s
-  in (# ar, s', (# | | (# unsafeCoerce op, unsafeCoerce id #) #) #)
+  in (# ar, s', (# | (# | (# unsafeCoerce op, unsafeCoerce id #) #) #) #)

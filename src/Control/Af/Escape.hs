@@ -32,21 +32,20 @@ doRunEscape' ::
   Af efs b
 doRunEscape' af f g = Af $ \ sz ar0 s0 ->
   case unAf af (addSndI16Pair sz 1#) ar0 s0 of
-    (# ar1, s1, (# a | | #) #) ->
+    (# ar1, s1, (# a | #) #) ->
       unAf (f a) sz ar1 s1
-    (# ar1, s1, (# | e | #) #) ->
+    (# ar1, s1, (# | (# e | #) #) #) ->
       case readAfArray @Int ar1 0# s1 of
         (# s2, i #) ->
-          if i == 1
-          then
+          if i == 1 then
             unAf (g (unsafeCoerce e)) sz ar1 s2
           else
             let s3 = strictWriteAfArray ar1 0# (i - 1) s2
-            in (# ar1, s3, (# | e | #) #)
-    (# ar1, s1, (# | | (# op, k #) #) #) ->
+            in (# ar1, s3, (# | (# e | #) #) #)
+    (# ar1, s1, (# | (# | (# op, k #) #) #) #) ->
       let !(# s2, i #) = readAfArray @Int ar1 0# s1
           s3 = strictWriteAfArray ar1 0# (i - 1) s2
-      in (# ar1, s3, (# | | (# op, \x -> doRunEscape' (k x) f g #) #) #)
+      in (# ar1, s3, (# | (# | (# op, \x -> doRunEscape' (k x) f g #) #) #) #)
 
 
 {-# INLINE doRunEscape #-}
@@ -79,7 +78,7 @@ takeEscape :: forall ref ex efs a. In (Escape ex ref) efs => ex -> Af efs a
 takeEscape ex = Af $ \ sz ar s ->
   let di = cellIndexEscapeDepth @(Escape ex ref) @efs sz
       s' = strictWriteAfArray @Int ar 0# (GHC.I# (escapeDepth di)) s
-  in (# ar, s', (# | unsafeCoerce ex | #) #)
+  in (# ar, s', (# | (# unsafeCoerce ex | #) #) #)
 
 
 {-# INLINE takeEscape_ #-}
@@ -99,9 +98,9 @@ delimitEscape' af f g = Af $ \ sz ar0 s0 ->
   case copyFromAfArray ar0 (cellIndex di) (fstI16Pair sz) s0 of
     (# s1, backup #) ->
       case unAf af sz ar0 s1 of
-        (# ar1, s2, (# a | | #) #) ->
+        (# ar1, s2, (# a | #) #) ->
           unAf (f a) sz ar1 s2
-        (# ar1, s2, (# | e | #) #) ->
+        (# ar1, s2, (# | (# e | #) #) #) ->
           case readAfArray @Int ar1 0# s2 of
             (# s3, d #) ->
               case unI# d GHC.==# escapeDepth di of
@@ -109,9 +108,9 @@ delimitEscape' af f g = Af $ \ sz ar0 s0 ->
                   let s4 = copyToAfArray backup ar1 (cellIndex di) s3
                   in unAf (g (unsafeCoerce e)) sz ar1 s4
                 _ ->
-                  (# ar1, s3, (# | e | #) #)
-        (# ar1, s2, (# | | (# op, k #) #) #) ->
-          (# ar1, s2, (# | | (# op, \ x -> delimitEscape' @ref (k x) f g #) #) #)
+                  (# ar1, s3, (# | (# e | #) #) #)
+        (# ar1, s2, (# | (# | (# op, k #) #) #) #) ->
+          (# ar1, s2, (# | (# | (# op, \ x -> delimitEscape' @ref (k x) f g #) #) #) #)
 
 
 {-# INLINE delimitEscape #-}
@@ -133,9 +132,9 @@ catchEscape' af g = Af $ \ sz ar0 s0 ->
   case copyFromAfArray ar0 (cellIndex di) (fstI16Pair sz) s0 of
     (# s1, backup #) ->
       case unAf af sz ar0 s1 of
-        (# ar1, s2, (# a | | #) #) ->
-          (# ar1, s2, (# a | | #) #)
-        (# ar1, s2, (# | e | #) #) ->
+        (# ar1, s2, (# a | #) #) ->
+          (# ar1, s2, (# a | #) #)
+        (# ar1, s2, (# | (# e | #) #) #) ->
           case readAfArray @Int ar1 0# s2 of
             (# s3, d #) ->
               case unI# d GHC.==# escapeDepth di of
@@ -143,9 +142,9 @@ catchEscape' af g = Af $ \ sz ar0 s0 ->
                   let s4 = copyToAfArray backup ar1 (cellIndex di) s3
                   in unAf (g (unsafeCoerce e)) sz ar1 s4
                 _ ->
-                  (# ar1, s3, (# | e | #) #)
-        (# ar1, s2, (# | | (# op, k #) #) #) ->
-          (# ar1, s2, (# | | (# op, \ x -> catchEscape' @ref (k x) g #) #) #)
+                  (# ar1, s3, (# | (# e | #) #) #)
+        (# ar1, s2, (# | (# | (# op, k #) #) #) #) ->
+          (# ar1, s2, (# | (# | (# op, \ x -> catchEscape' @ref (k x) g #) #) #) #)
 
 
 -- catchEscape af g = delimitEscape af return g

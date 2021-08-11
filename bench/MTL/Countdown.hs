@@ -1,6 +1,7 @@
 module MTL.Countdown
   ( runCountdownPut
   , runCountdownExc
+  , runCountdownCountupExc
   ) where
 
 import Control.Monad.State
@@ -33,3 +34,17 @@ countdownExc = do
 {-# NOINLINE runCountdownExc #-}
 runCountdownExc :: Int -> Either String (Int, Int)
 runCountdownExc n = runExcept (runStateT countdownExc n)
+
+
+{-# NOINLINE countdownCountupExc #-}
+countdownCountupExc :: StateT Int (Except String) Int
+countdownCountupExc = do
+  n <- get @Int
+  if n <= 0
+  then throwError "what"
+  else put (n - 1) *> fmap (+1) countdownCountupExc
+
+
+{-# NOINLINE runCountdownCountupExc #-}
+runCountdownCountupExc :: Int -> Either String (Int, Int)
+runCountdownCountupExc n = runExcept (runStateT countdownCountupExc n)
