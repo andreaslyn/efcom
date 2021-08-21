@@ -1,3 +1,5 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
 import Control.Af
 import Control.Af.Cell
 import Control.Af.Escape
@@ -5,6 +7,8 @@ import Control.Af.STE
 import Control.Af.IOE
 
 import Data.STRef (STRef, newSTRef, writeSTRef, readSTRef)
+
+import Data.Kind (Constraint)
 
 
 ------------------------------- Test ---------------------------------
@@ -79,8 +83,49 @@ loopWithST = do
         (0 :: Int) (\i s -> return (i, s)))
 
 
+data Nondet (c :: [*] -> Constraint) a
+
+data NondetCont (c :: [*] -> Constraint) a = NondetCont (forall efs. (c efs, In (Nondet c a) efs) => Bool -> Af efs [a])
+
+type instance Effect (Nondet c a) = '[Escape (NondetCont c a)]
+
+nondetHandler ::
+  forall c efs a. (c efs, In (Nondet c a) efs) =>
+  Af efs [a] -> Af efs [a]
+nondetHandler af = 
+  catchEscape @(Nondet c a) @(NondetCont c a) af $ \ (NondetCont k) -> do
+    xs <- nondetHandler @c (k True)
+    ys <- nondetHandler @c (k False)
+    return (xs ++ ys)
+
+chooseBool ::
+  forall c efs a. In (Nondet c a) efs =>
+  (forall dfs. (c dfs, In (Nondet c a) dfs) => Bool -> Af dfs [a]) -> Af efs [a]
+chooseBool k = takeEscape @(Nondet c a) (NondetCont k :: NondetCont c a)
+
+
+class NoC (efs :: [*])
+
+instance NoC efs
+
+
+nondetTest :: forall efs. In (Nondet NoC Int) efs => (forall dfs. In (Nondet NoC Int) dfs => Int -> Af dfs [Int]) -> Af efs [Int]
+nondetTest k = do
+  chooseBool @NoC $ \ b ->
+    if b
+    then k 0
+    else chooseBool @NoC $ \ c ->
+      if c then k 1 else k 2
+
+
+runNondet :: forall c efs a. c (Nondet c a : efs) => Af (Nondet c a : efs) [a] -> Af efs [a]
+runNondet af =
+  runEscape @(Nondet c a) @(NondetCont c a) (runAfHead (nondetHandler @c af)) return $ \ _ -> return []
+
+
 main :: IO ()
 main = do
+  print (runAfPure (runNondet @NoC $ nondetTest @'[Nondet NoC Int] (return . return)))
   x <- withIOERunSTE $ do
     liftIO (putStrLn "hello 1")
     runEscape @() @String loopWithST
