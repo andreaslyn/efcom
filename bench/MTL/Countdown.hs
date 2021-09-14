@@ -4,7 +4,7 @@ module MTL.Countdown
   , runCountdownCountupExc
   ) where
 
-import Control.Monad.State
+import Control.Monad.State.Strict
 import Control.Monad.Except
 
 
@@ -42,7 +42,7 @@ countdownCountupExc = do
   n <- get @Int
   if n <= 0
   then throwError "what"
-  else put (n - 1) *> fmap (+1) countdownCountupExc
+  else (put $! n - 1) *> fmap (+1) countdownCountupExc
 
 
 {-# NOINLINE runCountdownCountupExc #-}
