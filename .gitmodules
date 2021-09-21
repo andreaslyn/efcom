@@ -1,0 +1,3 @@
+[submodule "af-plugin"]
+	path = af-plugin
+	url = https://gitlab.com/andreaslyn/af-plugin.git

@@ -8,6 +8,5 @@ import Control.Af.STE.Unsafe
   , runSTE
   , AfEnv (..)
   , AfToST
-  , controlST
   , liftST
   )

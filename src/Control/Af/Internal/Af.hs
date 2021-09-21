@@ -3,14 +3,13 @@ module Control.Af.Internal.Af
   , runAf#
   , runAfPure
   , runAfHead
-  , apAf
   ) where
 
 import Control.Af.Internal.I16Pair
 import Control.Af.Internal.Effect
 import Control.Af.Internal.AfArray
 
-import GHC.Exts (Any, State#)
+import GHC.Exts (inline, Any, State#)
 import qualified GHC.Exts as GHC
 
 import Unsafe.Coerce (unsafeCoerce)
@@ -31,13 +30,12 @@ fmapAfCont ::
   forall dfs efs a b.
   (Af dfs Any -> Af efs a) -> (a -> b) ->
   Af dfs Any -> Af efs b
-fmapAfCont k f x = fmapAf f (k x)
+fmapAfCont k f x = inline fmapAf f (k x)
 
 
-{-# INLINE fmapAf #-}
+{-# INLINABLE fmapAf #-}
 fmapAf :: forall efs a b. (a -> b) -> Af efs a -> Af efs b
-fmapAf f0 af = Af $ \ sz ar s ->
-  let f = f0 in
+fmapAf f af = Af $ \ sz ar s ->
   case unAf af sz ar s of
     (# ar', s', (# a | #) #) ->
       (# ar', s', (# f a | #) #)
@@ -49,10 +47,10 @@ fmapAf f0 af = Af $ \ sz ar s ->
 
 instance Functor (Af efs) where
   {-# INLINE fmap #-}
-  fmap = fmapAf
+  fmap = inline fmapAf
 
   {-# INLINE (<$) #-}
-  (<$) = fmapAf . const
+  (<$) = inline fmapAf . const
 
 
 {-# NOINLINE apAfCont #-}
@@ -60,16 +58,15 @@ apAfCont ::
   forall dfs efs a b.
   (Af dfs Any -> Af efs (a -> b)) -> Af efs a ->
   Af dfs Any -> Af efs b
-apAfCont k af x = apAf (k x) af
+apAfCont k af x = inline apAf (k x) af
 
 
-{-# INLINE apAf #-}
+{-# INLINABLE apAf #-}
 apAf :: forall efs a b. Af efs (a -> b) -> Af efs a -> Af efs b
-apAf ff af0 = Af $ \ sz ar s ->
-  let af = af0 in
+apAf ff af = Af $ \ sz ar s ->
   case unAf ff sz ar s of
     (# ar1, s1, (# f | #) #) ->
-        unAf (fmapAf f af) sz ar1 s1
+        unAf (inline fmapAf f af) sz ar1 s1
     (# ar1, s1, (# | (# e | #) #) #) ->
       (# ar1, s1, (# | (# e | #) #) #)
     (# ar1, s1, (# | (# | (# op, k #) #) #) #) ->
@@ -81,13 +78,13 @@ instance Applicative (Af efs) where
   pure a = Af $ \ _ ar s -> (# ar, s, (# a | #) #)
 
   {-# INLINE (<*>) #-}
-  (<*>) = apAf
+  (<*>) = inline apAf
 
   {-# INLINE (*>) #-}
-  af1 *> af2 = bindAf af1 (\ _ -> af2)
+  af1 *> af2 = inline bindAf af1 (\ _ -> af2)
 
   {-# INLINE (<*) #-}
-  af1 <* af2 = bindAf af1 (<$ af2)
+  af1 <* af2 = inline bindAf af1 (<$ af2)
 
 
 {-# NOINLINE bindAfCont #-}
@@ -95,13 +92,12 @@ bindAfCont ::
   forall dfs efs a b.
   (Af dfs Any -> Af efs a) -> (a -> Af efs b) ->
   Af dfs Any -> Af efs b
-bindAfCont k ff x = bindAf (k x) ff
+bindAfCont k ff x = inline bindAf (k x) ff
 
 
-{-# INLINE bindAf #-}
+{-# INLINABLE bindAf #-}
 bindAf :: forall efs a b. Af efs a -> (a -> Af efs b) -> Af efs b
-bindAf mf ff0 = Af $ \ sz ar s ->
-  let ff = ff0 in
+bindAf mf ff = Af $ \ sz ar s ->
   case unAf mf sz ar s of
     (# ar', s', (# a | #) #) ->
       unAf (ff a) sz ar' s'
@@ -113,13 +109,13 @@ bindAf mf ff0 = Af $ \ sz ar s ->
 
 instance Monad (Af efs) where
   {-# INLINE return #-}
-  return = pure
+  return = inline pure
 
   {-# INLINE (>>=) #-}
-  (>>=) = bindAf
+  (>>=) = inline bindAf
 
   {-# INLINE (>>) #-}
-  af1 >> af2 = bindAf af1 (\ _ -> af2)
+  af1 >> af2 = inline (bindAf af1 (\ _ -> af2))
 
 
 {-# INLINE initialAfArray #-}

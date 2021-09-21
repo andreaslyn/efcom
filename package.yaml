@@ -21,9 +21,14 @@ description:         Please see the README on GitHub at <https://github.com/gith
 
 dependencies:
 - base >= 4.7 && < 5
+- af-plugin
 
 library:
   source-dirs: src
+  ghc-options:
+  - -O2
+  - -fdicts-strict
+  - -fplugin=Control.Af.Internal.Plugin
 
 executables:
   af-exe:
@@ -34,8 +39,8 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     - -O2
-    - -fspec-constr-keen
     - -fdicts-strict
+    - -fplugin=Control.Af.Internal.Plugin
     dependencies:
     - af
 
@@ -48,8 +53,8 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     - -O2
-    - -fspec-constr-keen
     - -fdicts-strict
+    - -fplugin=Control.Af.Internal.Plugin
     dependencies:
     - af
 
@@ -62,8 +67,8 @@ benchmarks:
     - -rtsopts
     - -with-rtsopts=-N
     - -O2
-    - -fspec-constr-keen
     - -fdicts-strict
+    - -fplugin=Control.Af.Internal.Plugin
     dependencies:
     - af
     - transformers
