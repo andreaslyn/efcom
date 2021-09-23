@@ -22,13 +22,12 @@ type ReadWriteNoError efs =
 {-# NOINLINE loop #-}
 loop :: ReadWriteNoError efs => Int -> Af efs ()
 loop 0 = return ()
-loop i = catchError (do
-    x <- ask @Int
-    tell (Sum x)
-    void $ listen @(Sum Int) $ do
-      when (i < 0) (throwError "unexpected error")
-      local @Int (+0) (loop (i - 1))
-  ) (throwError @String)
+loop i = flip catchError (throwError @String) $ do
+  x <- ask @Int
+  tell (Sum x)
+  void $ listen @(Sum Int) $ do
+    when (i < 0) (throwError "unexpected error")
+    local @Int (+0) (loop (i - 1))
 
 
 {-# NOINLINE runReadWriteNoError #-}
