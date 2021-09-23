@@ -17,7 +17,7 @@ import Control.Af.Internal.In
 
 import Unsafe.Coerce (unsafeCoerce)
 
-import GHC.Exts (inline)
+import GHC.Exts (inline, Any)
 import qualified GHC.Exts as GHC
 
 
@@ -40,15 +40,17 @@ doRunHandle' af ret h = Af $ \ sz ar0 s0 ->
       let !(# s2, i #) = readAfArray @Int ar1 0# s1
           s3 = strictWriteAfArray ar1 0# (i - 1) s2
       in (# ar1, s3, (# | (# e | #) #) #)
-    (# ar1, s1, (# | (# | (# op, k #) #) #) #) ->
+    (# ar1, s1, (# | (# | k #) #) #) ->
       case readAfArray @Int ar1 0# s1 of
         (# s2, i #) ->
           if i == 1
           then
-            unAf (h (unsafeCoerce op) (\ x -> doRunHandle' (k x) ret h)) sz ar1 s2
+            let !(# s3, op #) = readAfArray @Any ar1 1# s2
+                s4 = writeAfArray ar1 1# undefinedElementAfArray s3
+            in unAf (h (unsafeCoerce op) (\ x -> doRunHandle' (k x) ret h)) sz ar1 s4
           else
             let s3 = strictWriteAfArray ar1 0# (i - 1) s2
-            in (# ar1, s3, (# | (# | (# op, \x -> doRunHandle' (k x) ret h #) #) #) #)
+            in (# ar1, s3, (# | (# | \x -> doRunHandle' (k x) ret h #) #) #)
 
 
 {-# INLINE doRunHandle #-}
@@ -81,15 +83,17 @@ delimitHandle' af ret h = Af $ \ sz ar0 s0 ->
           (# ar1, s2, (# ret a | #) #)
         (# ar1, s2, (# | (# e | #) #) #) ->
           (# ar1, s2, (# | (# e | #) #) #)
-        (# ar1, s2, (# | (# | (# op, k #) #) #) #) ->
+        (# ar1, s2, (# | (# | k #) #) #) ->
           case readAfArray @Int ar1 0# s2 of
             (# s3, d #) ->
               case unI# d GHC.==# escapeDepth di of
                 1# ->
                   let s4 = copyToAfArray backup ar1 (cellIndex di) s3
-                  in unAf (h (unsafeCoerce op) (\ x -> delimitHandle' @ref (k x) ret h)) sz ar1 s4
+                      !(# s5, op #) = readAfArray @Any ar1 1# s4
+                      s6 = writeAfArray ar1 1# undefinedElementAfArray s5
+                  in unAf (h (unsafeCoerce op) (\ x -> delimitHandle' @ref (k x) ret h)) sz ar1 s6
                 _ ->
-                  (# ar1, s3, (# | (# | (# op, \ x -> delimitHandle' @ref (k x) ret h #) #) #) #)
+                  (# ar1, s3, (# | (# | \ x -> delimitHandle' @ref (k x) ret h #) #) #)
 
 
 {-# INLINE delimitHandle #-}
@@ -106,7 +110,8 @@ delimitHandle af ret h = inline (delimitHandle' @ref af ret h)
 backtrackHandle :: 
   forall ref ha efs a. In (Handle ha ref) efs =>
   ha efs a -> Af efs a
-backtrackHandle op = Af $ \ sz ar s ->
+backtrackHandle op = Af $ \ sz ar s0 ->
   let di = cellIndexEscapeDepth @(Handle ha ref) @efs sz
-      s' = strictWriteAfArray @Int ar 0# (GHC.I# (escapeDepth di)) s
-  in (# ar, s', (# | (# | (# unsafeCoerce op, unsafeCoerce id #) #) #) #)
+      s1 = strictWriteAfArray @Int ar 0# (GHC.I# (escapeDepth di)) s0
+      s2 = writeAfArray @(ha efs a) ar 1# op s1
+  in (# ar, s2, (# | (# | unsafeCoerce id #) #) #)

@@ -41,8 +41,8 @@ doRunCell' af ce k = Af $ \ sz ar0 s0 ->
             unAf (k a ce') sz ar2 s4
           (# | (# e | #) #) ->
             (# ar2, s4, (# | (# e | #) #) #)
-          (# | (# | (# op, kf #) #) #) ->
-            (# ar2, s4, (# | (# | (# op, \x -> doRunCell' (kf x) ce' k #) #) #) #)
+          (# | (# | kf #) #) ->
+            (# ar2, s4, (# | (# | \x -> doRunCell' (kf x) ce' k #) #) #)
 
 
 {-# INLINE doRunCell #-}
@@ -110,8 +110,8 @@ delimitCell' af ce k g = Af $ \ sz ar0 s0 ->
       case d of
         (# e | #) ->
           (# ar1, s6, (# | (# e | #) #) #)
-        (# | (# op, kf #) #) ->
-          (# ar1, s6, (# | (# | (# op, \x -> delimitCell' @ref (kf x) ce' k g #) #) #) #)
+        (# | kf #) ->
+          (# ar1, s6, (# | (# | \x -> delimitCell' @ref (kf x) ce' k g #) #) #)
 
 
 {-# INLINE delimitCell #-}
@@ -161,8 +161,8 @@ localCell' af ce k = Af $ \ sz ar0 s0 ->
       unAf (k a ce') sz ar1 s5
     (# | (# e | #) #) ->
       (# ar1, s5, (# | (# e | #) #) #)
-    (# | (# | (# op, kf #) #) #) ->
-      (# ar1, s5, (# | (# | (# op, \x -> localCell' @ref (kf x) ce' k #) #) #) #)
+    (# | (# | kf #) #) ->
+      (# ar1, s5, (# | (# | \x -> localCell' @ref (kf x) ce' k #) #) #)
 
 
 {-# INLINE localCell #-}

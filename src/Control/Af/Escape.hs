@@ -42,10 +42,10 @@ doRunEscape' af f g = Af $ \ sz ar0 s0 ->
           else
             let s3 = strictWriteAfArray ar1 0# (i - 1) s2
             in (# ar1, s3, (# | (# e | #) #) #)
-    (# ar1, s1, (# | (# | (# op, k #) #) #) #) ->
+    (# ar1, s1, (# | (# | k #) #) #) ->
       let !(# s2, i #) = readAfArray @Int ar1 0# s1
           s3 = strictWriteAfArray ar1 0# (i - 1) s2
-      in (# ar1, s3, (# | (# | (# op, \x -> doRunEscape' (k x) f g #) #) #) #)
+      in (# ar1, s3, (# | (# | \x -> doRunEscape' (k x) f g #) #) #)
 
 
 {-# INLINE doRunEscape #-}
@@ -109,8 +109,8 @@ delimitEscape' af f g = Af $ \ sz ar0 s0 ->
                   in unAf (g (unsafeCoerce e)) sz ar1 s4
                 _ ->
                   (# ar1, s3, (# | (# e | #) #) #)
-        (# ar1, s2, (# | (# | (# op, k #) #) #) #) ->
-          (# ar1, s2, (# | (# | (# op, \ x -> delimitEscape' @ref (k x) f g #) #) #) #)
+        (# ar1, s2, (# | (# | k #) #) #) ->
+          (# ar1, s2, (# | (# | \ x -> delimitEscape' @ref (k x) f g #) #) #)
 
 
 {-# INLINE delimitEscape #-}
@@ -143,8 +143,8 @@ catchEscape' af g = Af $ \ sz ar0 s0 ->
                   in unAf (g (unsafeCoerce e)) sz ar1 s4
                 _ ->
                   (# ar1, s3, (# | (# e | #) #) #)
-        (# ar1, s2, (# | (# | (# op, k #) #) #) #) ->
-          (# ar1, s2, (# | (# | (# op, \ x -> catchEscape' @ref (k x) g #) #) #) #)
+        (# ar1, s2, (# | (# | k #) #) #) ->
+          (# ar1, s2, (# | (# | \ x -> catchEscape' @ref (k x) g #) #) #)
 
 
 -- catchEscape af g = delimitEscape af return g
