@@ -30,6 +30,7 @@ library
       Control.Af.Cell
       Control.Af.Effect
       Control.Af.Error
+      Control.Af.Error2
       Control.Af.Escape
       Control.Af.Handle
       Control.Af.In
