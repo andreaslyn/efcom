@@ -21,7 +21,7 @@ newtype Af (efs :: [*]) (a :: *) = Af
       I16Pair -> AfArray s -> State# s ->
       (# AfArray s
        , State# s
-       , (# a | (# Any | Af dfs Any -> Af efs a #) #) #)
+       , (# a | (# Any | (# Any, Af dfs Any -> Af efs a #) #) #) #)
   }
 
 
@@ -41,8 +41,8 @@ fmapAf f af = Af $ \ sz ar s ->
       (# ar', s', (# f a | #) #)
     (# ar', s', (# | (# e | #) #) #) ->
       (# ar', s', (# | (# e | #) #) #)
-    (# ar', s', (# | (# | k #) #) #) ->
-      (# ar', s', (# | (# | fmapAfCont k f #) #) #)
+    (# ar', s', (# | (# | (# op, k #) #) #) #) ->
+      (# ar', s', (# | (# | (# op, fmapAfCont k f #) #) #) #)
 
 
 instance Functor (Af efs) where
@@ -69,8 +69,8 @@ apAf ff af = Af $ \ sz ar s ->
         unAf (inline fmapAf f af) sz ar1 s1
     (# ar1, s1, (# | (# e | #) #) #) ->
       (# ar1, s1, (# | (# e | #) #) #)
-    (# ar1, s1, (# | (# | k #) #) #) ->
-      (# ar1, s1, (# | (# | apAfCont k af #) #) #)
+    (# ar1, s1, (# | (# | (# op, k #) #) #) #) ->
+      (# ar1, s1, (# | (# | (# op, apAfCont k af #) #) #) #)
 
 
 instance Applicative (Af efs) where
@@ -103,8 +103,8 @@ bindAf mf ff = Af $ \ sz ar s ->
       unAf (ff a) sz ar' s'
     (# ar', s', (# | (# e | #) #) #) ->
       (# ar', s', (# | (# e | #) #) #)
-    (# ar', s', (# | (# | k #) #) #) ->
-      (# ar', s', (# | (# | bindAfCont k ff #) #) #)
+    (# ar', s', (# | (# | (# op, k #) #) #) #) ->
+      (# ar', s', (# | (# | (# op, bindAfCont k ff #) #) #) #)
 
 
 instance Monad (Af efs) where
@@ -115,12 +115,12 @@ instance Monad (Af efs) where
   (>>=) = inline bindAf
 
   {-# INLINE (>>) #-}
-  af1 >> af2 = inline bindAf af1 (\ _ -> af2)
+  af1 >> af2 = inline (bindAf af1 (\ _ -> af2))
 
 
 {-# INLINE initialAfArray #-}
 initialAfArray :: forall s. State# s -> (# State# s, AfArray s #)
-initialAfArray s = newAfArray 4# s
+initialAfArray s = newAfArray 2# s
 
 
 {-# INLINE runAf# #-}
@@ -128,7 +128,7 @@ runAf# :: forall efs a s. Af efs a -> State# s -> (# State# s, a #)
 runAf# af s0 =
   case initialAfArray s0 of
     (# s1, ar #) ->
-      case unAf af (makeI16Pair 2# 0#) ar s1 of
+      case unAf af (makeI16Pair 1# 0#) ar s1 of
         (# _, s2, (# a | #) #) ->
           (# s2, a #)
         (# _, s2, (# | _ #) #) ->
