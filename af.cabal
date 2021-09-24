@@ -71,7 +71,7 @@ library
       UnboxedSums
       UnliftedNewtypes
       GeneralizedNewtypeDeriving
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2 -fdicts-strict -fplugin=Control.Af.Internal.Plugin
+  ghc-options: -O2 -fdicts-strict -fplugin=Control.Af.Internal.Plugin
   build-depends:
       af-plugin
     , base >=4.7 && <5
