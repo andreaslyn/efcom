@@ -1,6 +1,7 @@
 module Pure.Countdown
   ( runCountdownPut
   , runCountdownExc
+  , runCountdownCountupExc
   ) where
 
 

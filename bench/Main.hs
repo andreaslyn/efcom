@@ -60,13 +60,13 @@ countdownCountupExc :: C.Benchmark
 countdownCountupExc =
   let n = 500000 in
   C.bgroup "CountdownCountupExc"
-  [ C.bench "pure" $ C.nf Af.runCountdownCountupExc n
+  [ C.bench "pure" $ C.nf Pure.runCountdownCountupExc n
   , C.bench "af" $ C.nf Af.runCountdownCountupExc n
   , C.bench "mtl" $ C.nf MTL.runCountdownCountupExc n
-  , C.bench "pure" $ C.nf Af.runCountdownCountupExc n
+  , C.bench "pure" $ C.nf Pure.runCountdownCountupExc n
   , C.bench "af" $ C.nf Af.runCountdownCountupExc n
   , C.bench "mtl" $ C.nf MTL.runCountdownCountupExc n
-  , C.bench "pure" $ C.nf Af.runCountdownCountupExc n
+  , C.bench "pure" $ C.nf Pure.runCountdownCountupExc n
   , C.bench "af" $ C.nf Af.runCountdownCountupExc n
   , C.bench "mtl" $ C.nf MTL.runCountdownCountupExc n
   ]
