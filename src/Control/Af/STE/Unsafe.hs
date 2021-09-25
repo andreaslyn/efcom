@@ -45,13 +45,13 @@ unsafeCoerceBacktrack = Unsafe.Coerce.unsafeCoerce
 data AfEnv s a =
     AfEnvError !(AfArray s) Any
   | AfEnvSuccess !(AfArray s) a
-  | forall dfs efs. AfEnvBacktrack !(AfArray s) Any (Af dfs Any -> Af efs a)
+  | forall dfs efs. AfEnvBacktrack !(AfArray s) (Af dfs Any -> Af efs a)
 
 
 instance Functor (AfEnv s) where
   fmap _ (AfEnvError ar e) = AfEnvError ar e
   fmap f (AfEnvSuccess ar a) = AfEnvSuccess ar (f a)
-  fmap _ (AfEnvBacktrack ar op k) = Unsafe.Coerce.unsafeCoerce (AfEnvBacktrack ar op k)
+  fmap _ (AfEnvBacktrack ar k) = Unsafe.Coerce.unsafeCoerce (AfEnvBacktrack ar k)
 
 
 {-# INLINE unsafeAfEnvError #-}
@@ -67,9 +67,9 @@ unsafeAfEnvSuccess ar a = AfEnvSuccess (unsafeCoerceAfArray ar) a
 {-# INLINE unsafeAfEnvBacktrack #-}
 unsafeAfEnvBacktrack ::
   forall s t dfs efs a.
-  AfArray s -> Any -> (Af dfs Any -> Af efs a) -> AfEnv t a
-unsafeAfEnvBacktrack ar op k =
-  AfEnvBacktrack (unsafeCoerceAfArray ar) op (unsafeCoerceBacktrack k)
+  AfArray s -> (Af dfs Any -> Af efs a) -> AfEnv t a
+unsafeAfEnvBacktrack ar k =
+  AfEnvBacktrack (unsafeCoerceAfArray ar) (unsafeCoerceBacktrack k)
 
 
 {-# INLINE unST #-}
