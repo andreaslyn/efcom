@@ -57,6 +57,7 @@ tests:
     - -fplugin=Control.Af.Internal.Plugin
     dependencies:
     - af
+    - hspec
 
 benchmarks:
   atl-bench:

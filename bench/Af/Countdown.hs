@@ -10,42 +10,42 @@ import Control.Af.Error
 
 
 {-# NOINLINE countdownPut #-}
-countdownPut :: In (State Int) efs => Af efs Int
+countdownPut :: In (State Integer) efs => Af efs Integer
 countdownPut = do
-  n <- get @Int
+  n <- get @Integer
   if n < 0
   then pure n
   else put (n - 1) *> countdownPut
 
 
 {-# NOINLINE runCountdownPut #-}
-runCountdownPut :: Int -> (Int, Int)
+runCountdownPut :: Integer -> (Integer, Integer)
 runCountdownPut n = runAfPure $ runState countdownPut n
 
 
 {-# NOINLINE countdownExc #-}
-countdownExc :: AllIn '[State Int, Error String] efs => Af efs Int
+countdownExc :: AllIn '[State Integer, Error String] efs => Af efs Integer
 countdownExc = do
-  n <- get @Int
+  n <- get @Integer
   if n <= 0
   then throwError "what"
   else put (n - 1) *> countdownExc
 
 
 {-# NOINLINE runCountdownExc #-}
-runCountdownExc :: Int -> Either String (Int, Int)
+runCountdownExc :: Integer -> Either String (Integer, Integer)
 runCountdownExc n = runAfPure $ runError (runState countdownExc n)
 
 
 {-# NOINLINE countdownCountupExc #-}
-countdownCountupExc :: AllIn '[State Int, Error String] efs => Af efs Int
+countdownCountupExc :: AllIn '[State Integer, Error String] efs => Af efs Integer
 countdownCountupExc = do
-  n <- get @Int
+  n <- get @Integer
   if n <= 0
   then throwError "what"
   else put (n - 1) *> fmap (+1) countdownCountupExc
 
 
 {-# NOINLINE runCountdownCountupExc #-}
-runCountdownCountupExc :: Int -> Either String (Int, Int)
+runCountdownCountupExc :: Integer -> Either String (Integer, Integer)
 runCountdownCountupExc n = runAfPure $ runError (runState countdownCountupExc n)
