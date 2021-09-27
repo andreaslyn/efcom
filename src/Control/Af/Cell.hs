@@ -24,12 +24,12 @@ import qualified GHC.Exts as GHC
 {-# INLINABLE doRunCell' #-}
 doRunCell' ::
   forall ref ce efs a b.
-  Af (Cell ce ref : efs) a -> -- Effect computation to execute.
   ce ->                       -- The initial cell state.
   (a -> ce -> Af efs b) -> -- Action called with result and final
                            -- cell state of the effect computation.
+  Af (Cell ce ref : efs) a -> -- Effect computation to execute.
   Af efs b
-doRunCell' af ce k = Af $ \ sz ar0 s0 ->
+doRunCell' ce k = \ af -> Af $ \ sz ar0 s0 ->
   case appendAfArray sz ar0 ce s0 of
     (# ar1, s1, sz' #) ->
       let !(# ar2, s2, r #) = unAf af sz' ar1 s1
@@ -42,7 +42,7 @@ doRunCell' af ce k = Af $ \ sz ar0 s0 ->
           (# | (# e | #) #) ->
             (# ar2, s4, (# | (# e | #) #) #)
           (# | (# | kf #) #) ->
-            (# ar2, s4, (# | (# | \x -> doRunCell' (kf x) ce' k #) #) #)
+            (# ar2, s4, (# | (# | AfContScope (doRunCell' ce' k) kf #) #) #)
 
 
 {-# INLINE doRunCell #-}
@@ -53,7 +53,7 @@ doRunCell ::
   (a -> ce -> Af efs b) -> -- Action called with result and final
                            -- cell state of the effect computation.
   Af efs b
-doRunCell af ce k = inline (doRunCell' af ce k)
+doRunCell af ce k = inline doRunCell' ce k af
 
 
 {-# INLINE runCell #-}
@@ -73,7 +73,6 @@ runCell af ce k = Af $ \ sz ar s ->
 {-# INLINABLE delimitCell' #-}
 delimitCell' ::
   forall ref ce efs a b. In (Cell ce ref) efs =>
-  Af efs a -> -- Effectful computation to execute.
   ce ->       -- The initial cell state.
   (a -> ce -> Af efs b) -> -- Success action, used when the scoped
                            -- computation finished without escape.
@@ -89,8 +88,9 @@ delimitCell' ::
                            -- is the new cell state after delimitCell.
                            -- Note that, as an optimisation, external
                            -- escapes do not cause this, only internal.
+  Af efs a -> -- Effectful computation to execute.
   Af efs b
-delimitCell' af ce k g = Af $ \ sz ar0 s0 ->
+delimitCell' ce k g = \ af -> Af $ \ sz ar0 s0 ->
   let di = cellIndexEscapeDepth @(Cell ce ref) @efs sz
       !(# s1, orig #) = readAfArray ar0 (cellIndex di) s0
       s2 = writeAfArray ar0 (cellIndex di) ce s1
@@ -111,7 +111,7 @@ delimitCell' af ce k g = Af $ \ sz ar0 s0 ->
         (# e | #) ->
           (# ar1, s6, (# | (# e | #) #) #)
         (# | kf #) ->
-          (# ar1, s6, (# | (# | \x -> delimitCell' @ref (kf x) ce' k g #) #) #)
+          (# ar1, s6, (# | (# | AfContScope (delimitCell' @ref ce' k g) kf #) #) #)
 
 
 {-# INLINE delimitCell #-}
@@ -134,13 +134,12 @@ delimitCell ::
                            -- Note that, as an optimisation, external
                            -- escapes do not cause this, only internal.
   Af efs b
-delimitCell af ce k g = inline (delimitCell' @ref af ce k g)
+delimitCell af ce k g = inline (delimitCell' @ref ce k g) af
 
 
 {-# INLINABLE localCell' #-}
 localCell' ::
   forall ref ce efs a b. In (Cell ce ref) efs =>
-  Af efs a -> -- Effectful computation to execute.
   ce ->       -- The initial cell state.
   (a -> ce -> Af efs b) -> -- Success action, used when the scoped
                            -- computation finished without escape.
@@ -148,8 +147,9 @@ localCell' ::
                            -- computation the second argument is the
                            -- final cell state. The cell state of Af efs
                            -- is restored to that before localCell.
+  Af efs a -> -- Effectful computation to execute.
   Af efs b
-localCell' af ce k = Af $ \ sz ar0 s0 ->
+localCell' ce k = \ af -> Af $ \ sz ar0 s0 ->
   let di = cellIndexEscapeDepth @(Cell ce ref) @efs sz
       !(# s1, orig #) = readAfArray ar0 (cellIndex di) s0
       s2 = writeAfArray ar0 (cellIndex di) ce s1
@@ -162,7 +162,7 @@ localCell' af ce k = Af $ \ sz ar0 s0 ->
     (# | (# e | #) #) ->
       (# ar1, s5, (# | (# e | #) #) #)
     (# | (# | kf #) #) ->
-      (# ar1, s5, (# | (# | \x -> localCell' @ref (kf x) ce' k #) #) #)
+      (# ar1, s5, (# | (# | AfContScope (localCell' @ref ce' k) kf #) #) #)
 
 
 {-# INLINE localCell #-}
@@ -177,7 +177,7 @@ localCell ::
                            -- final cell state. The cell state of Af efs
                            -- is restored to that before localCell.
   Af efs b
-localCell af ce k = inline (localCell' @ref af ce k)
+localCell af ce k = inline (localCell' @ref ce k) af
 
 
 {-# INLINE lazyWriteCell #-}

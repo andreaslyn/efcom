@@ -4,6 +4,9 @@ module Control.Af.Af
 
 import Control.Af.Internal.Af
   ( Af
+  , AfCont
+  , runAfCont
+  , runAfCont1
   , runAfPure
   , runAfHead
   )

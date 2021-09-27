@@ -1,5 +1,8 @@
 module Control.Af.Internal.Af
   ( Af (..)
+  , AfCont (..)
+  , runAfCont
+  , runAfCont1
   , runAf#
   , runAfPure
   , runAfHead
@@ -15,22 +18,35 @@ import qualified GHC.Exts as GHC
 import Unsafe.Coerce (unsafeCoerce)
 
 
+data AfCont :: [*] -> * -> [*] -> * -> * where
+  AfContNil :: forall efs a. AfCont efs a efs a
+  AfContBind ::
+    forall dfs efs a b c. (b -> Af efs c) -> AfCont dfs a efs b -> AfCont dfs a efs c
+  AfContScope ::
+    forall cfs dfs efs a b c. (Af dfs b -> Af efs c) -> AfCont cfs a dfs b -> AfCont cfs a efs c
+
+
+{-# NOINLINE runAfCont1 #-}
+runAfCont1 :: forall efs dfs a b. AfCont efs a dfs b -> Af efs a -> Af dfs b
+runAfCont1 AfContNil a = a
+runAfCont1 (AfContBind f c) a = inline bindAf (runAfCont1 c a) f
+runAfCont1 (AfContScope f c) a = f (runAfCont1 c a)
+
+
+{-# NOINLINE runAfCont #-}
+runAfCont :: forall efs dfs a b. AfCont efs a dfs b -> a -> Af dfs b
+runAfCont AfContNil a = inline return a
+runAfCont (AfContBind f AfContNil) a = f a
+runAfCont (AfContBind f c) a = inline bindAf (runAfCont c a) f
+runAfCont (AfContScope f c) a = f (runAfCont c a)
+
+
 newtype Af (efs :: [*]) (a :: *) = Af
   { unAf ::
       forall dfs s.
       I16Pair -> AfArray s -> State# s ->
-      (# AfArray s
-       , State# s
-       , (# a | (# Any | Af dfs Any -> Af efs a #) #) #)
+      (# AfArray s, State# s, (# a | (# Any | AfCont dfs Any efs a #) #) #)
   }
-
-
-{-# NOINLINE fmapAfCont #-}
-fmapAfCont ::
-  forall dfs efs a b.
-  (Af dfs Any -> Af efs a) -> (a -> b) ->
-  Af dfs Any -> Af efs b
-fmapAfCont k f x = inline fmapAf f (k x)
 
 
 {-# INLINABLE fmapAf #-}
@@ -38,84 +54,60 @@ fmapAf :: forall efs a b. (a -> b) -> Af efs a -> Af efs b
 fmapAf f af = Af $ \ sz ar s ->
   case unAf af sz ar s of
     (# ar', s', (# a | #) #) ->
+      {-# SCC fmapAf_value #-}
       (# ar', s', (# f a | #) #)
     (# ar', s', (# | (# e | #) #) #) ->
       (# ar', s', (# | (# e | #) #) #)
     (# ar', s', (# | (# | k #) #) #) ->
-      (# ar', s', (# | (# | fmapAfCont k f #) #) #)
+      {-# SCC bindAf_AfContBind #-}
+      (# ar', s', (# | (# | AfContBind (inline return . f) k #) #) #)
 
 
 instance Functor (Af efs) where
   {-# INLINE fmap #-}
-  fmap = inline fmapAf
+  fmap = fmapAf
 
   {-# INLINE (<$) #-}
-  (<$) = inline fmapAf . const
-
-
-{-# NOINLINE apAfCont #-}
-apAfCont ::
-  forall dfs efs a b.
-  (Af dfs Any -> Af efs (a -> b)) -> Af efs a ->
-  Af dfs Any -> Af efs b
-apAfCont k af x = inline apAf (k x) af
-
-
-{-# INLINABLE apAf #-}
-apAf :: forall efs a b. Af efs (a -> b) -> Af efs a -> Af efs b
-apAf ff af = Af $ \ sz ar s ->
-  case unAf ff sz ar s of
-    (# ar1, s1, (# f | #) #) ->
-        unAf (inline fmapAf f af) sz ar1 s1
-    (# ar1, s1, (# | (# e | #) #) #) ->
-      (# ar1, s1, (# | (# e | #) #) #)
-    (# ar1, s1, (# | (# | k #) #) #) ->
-      (# ar1, s1, (# | (# | apAfCont k af #) #) #)
+  (<$) = fmapAf . const
 
 
 instance Applicative (Af efs) where
   {-# INLINE pure #-}
-  pure a = Af $ \ _ ar s -> (# ar, s, (# a | #) #)
+  pure = inline return
 
   {-# INLINE (<*>) #-}
-  (<*>) = inline apAf
+  ff <*> af = bindAf ff (\ f -> inline fmapAf f af)
 
   {-# INLINE (*>) #-}
-  af1 *> af2 = inline bindAf af1 (\ _ -> af2)
+  af1 *> af2 = bindAf af1 (\ _ -> af2)
 
   {-# INLINE (<*) #-}
-  af1 <* af2 = inline bindAf af1 (<$ af2)
-
-
-{-# NOINLINE bindAfCont #-}
-bindAfCont ::
-  forall dfs efs a b.
-  (Af dfs Any -> Af efs a) -> (a -> Af efs b) ->
-  Af dfs Any -> Af efs b
-bindAfCont k ff x = inline bindAf (k x) ff
+  af1 <* af2 = bindAf af1 (<$ af2)
 
 
 {-# INLINABLE bindAf #-}
 bindAf :: forall efs a b. Af efs a -> (a -> Af efs b) -> Af efs b
-bindAf mf ff = Af $ \ sz ar s ->
-  case unAf mf sz ar s of
+bindAf af ff = Af $ \ sz ar s ->
+  case unAf af sz ar s of
     (# ar', s', (# a | #) #) ->
+      {-# SCC bindAf_value #-}
       unAf (ff a) sz ar' s'
     (# ar', s', (# | (# e | #) #) #) ->
       (# ar', s', (# | (# e | #) #) #)
     (# ar', s', (# | (# | k #) #) #) ->
-      (# ar', s', (# | (# | bindAfCont k ff #) #) #)
+      {-# SCC bindAf_AfContBind #-}
+      (# ar', s', (# | (# | AfContBind ff k #) #) #)
 
 
 instance Monad (Af efs) where
   {-# INLINE return #-}
-  return = inline pure
+  return a = Af $ \ _ ar s -> (# ar, s, (# a | #) #)
 
   {-# INLINE (>>=) #-}
-  (>>=) = inline bindAf
+  (>>=) = bindAf
 
   {-# INLINE (>>) #-}
-  af1 >> af2 = inline bindAf af1 (\ _ -> af2)
+  af1 >> af2 = bindAf af1 (\ _ -> af2)
 
 
 {-# INLINE initialAfArray #-}

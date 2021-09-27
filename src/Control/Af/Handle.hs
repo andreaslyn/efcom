@@ -25,14 +25,13 @@ import qualified GHC.Exts as GHC
 --  ha x -> (x -> Af efs r) -> Af efs r
 -- This requires corresponding change to the Af monad.
 type Handler (ha :: [*] -> * -> *) (efs :: [*]) (r :: *) =
-  forall dfs x. ha dfs x -> (Af dfs x -> Af efs r) -> Af efs r
+  forall dfs x. ha dfs x -> AfCont dfs x efs r -> Af efs r
 
 
-{-# INLINE doRunHandle' #-}
 doRunHandle' ::
   forall ref ha efs a r.
-  Af (Handle ha ref : efs) a -> (a -> r) -> Handler ha efs r -> Af efs r
-doRunHandle' af ret h = Af $ \ sz ar0 s0 ->
+  (a -> r) -> Handler ha efs r -> Af (Handle ha ref : efs) a -> Af efs r
+doRunHandle' ret h = \ af -> Af $ \ sz ar0 s0 ->
   case unAf af (addSndI16Pair sz 1#) ar0 s0 of
     (# ar1, s1, (# a | #) #) ->
       (# ar1, s1, (# ret a | #) #)
@@ -47,17 +46,17 @@ doRunHandle' af ret h = Af $ \ sz ar0 s0 ->
           then
             let !(# s3, op #) = readAfArray @Any ar1 1# s2
                 s4 = writeAfArray ar1 1# undefinedElementAfArray s3
-            in unAf (h (unsafeCoerce op) (\ x -> doRunHandle' (k x) ret h)) sz ar1 s4
+            in unAf (h (unsafeCoerce op) (AfContScope (doRunHandle' ret h) k)) sz ar1 s4
           else
             let s3 = strictWriteAfArray ar1 0# (i - 1) s2
-            in (# ar1, s3, (# | (# | \x -> doRunHandle' (k x) ret h #) #) #)
+            in (# ar1, s3, (# | (# | AfContScope (doRunHandle' ret h) k #) #) #)
 
 
 {-# INLINE doRunHandle #-}
 doRunHandle ::
   forall ref ha efs a r.
   Af (Handle ha ref : efs) a -> (a -> r) -> Handler ha efs r -> Af efs r
-doRunHandle af ret h = inline (doRunHandle' af ret h)
+doRunHandle af ret h = inline (doRunHandle' ret h) af
 
 
 {-# INLINE runHandle #-}
@@ -67,14 +66,13 @@ runHandle ::
 runHandle af ret h = Af $ \ sz ar s ->
   case isMaxI16PairValue (sndI16Pair sz) of
     1# -> error "exceeded maximal number of handle effects"
-    _ -> unAf (doRunHandle af ret h) sz ar s
+    _ -> unAf (doRunHandle af ret h) (addSndI16Pair sz 1#) ar s
 
 
-{-# INLINE delimitHandle' #-}
 delimitHandle' ::
   forall ref ha efs a r. In (Handle ha ref) efs =>
-  Af efs a -> (a -> r) -> Handler ha efs r -> Af efs r
-delimitHandle' af ret h = Af $ \ sz ar0 s0 ->
+  (a -> r) -> Handler ha efs r -> Af efs a -> Af efs r
+delimitHandle' ret h = \ af -> Af $ \ sz ar0 s0 ->
   let di = cellIndexEscapeDepth @(Handle ha ref) @efs sz in
   case copyFromAfArray ar0 (cellIndex di) (fstI16Pair sz) s0 of
     (# s1, backup #) ->
@@ -91,9 +89,9 @@ delimitHandle' af ret h = Af $ \ sz ar0 s0 ->
                   let s4 = copyToAfArray backup ar1 (cellIndex di) s3
                       !(# s5, op #) = readAfArray @Any ar1 1# s4
                       s6 = writeAfArray ar1 1# undefinedElementAfArray s5
-                  in unAf (h (unsafeCoerce op) (\ x -> delimitHandle' @ref (k x) ret h)) sz ar1 s6
+                  in unAf (h (unsafeCoerce op) (AfContScope (delimitHandle' @ref ret h) k)) sz ar1 s6
                 _ ->
-                  (# ar1, s3, (# | (# | \ x -> delimitHandle' @ref (k x) ret h #) #) #)
+                  (# ar1, s3, (# | (# | AfContScope (delimitHandle' @ref ret h) k #) #) #)
 
 
 {-# INLINE delimitHandle #-}
@@ -103,7 +101,7 @@ delimitHandle ::
   (a -> r) ->
   Handler ha efs r ->
   Af efs r
-delimitHandle af ret h = inline (delimitHandle' @ref af ret h)
+delimitHandle af ret h = inline (delimitHandle' @ref ret h) af
 
 
 {-# INLINE backtrackHandle #-}
@@ -114,4 +112,4 @@ backtrackHandle op = Af $ \ sz ar s0 ->
   let di = cellIndexEscapeDepth @(Handle ha ref) @efs sz
       s1 = strictWriteAfArray @Int ar 0# (GHC.I# (escapeDepth di)) s0
       s2 = writeAfArray @(ha efs a) ar 1# op s1
-  in (# ar, s2, (# | (# | unsafeCoerce id #) #) #)
+  in (# ar, s2, (# | (# | unsafeCoerce AfContNil #) #) #)

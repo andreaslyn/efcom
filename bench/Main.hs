@@ -3,12 +3,16 @@ module Main (main) where
 import qualified Criterion.Main as C
 
 import qualified Pure.Countdown as Pure
+import qualified Pure.Pyth as Pure
 
 import qualified Af.ReadWriteNoError as Af
 import qualified Af.Countdown as Af
+import qualified Af.Pyth1 as Af
+import qualified Af.Pyth2 as Af
 
 import qualified MTL.ReadWriteNoError as MTL
 import qualified MTL.Countdown as MTL
+import qualified MTL.Pyth as MTL
 
 
 readWriteNoError :: C.Benchmark
@@ -72,13 +76,34 @@ countdownCountupExc =
   ]
 
 
+pythTriples :: C.Benchmark
+pythTriples =
+  let n = 50 in
+  C.bgroup "PythTriples"
+  [ C.bench "pure" $ C.nf Pure.runPythTriples n
+  , C.bench "af-1" $ C.nf Af.runPythTriples1 n
+  , C.bench "af-2" $ C.nf Af.runPythTriples2 n
+  , C.bench "mtl" $ C.nf MTL.runPythTriples n
+  , C.bench "pure" $ C.nf Pure.runPythTriples n
+  , C.bench "af-1" $ C.nf Af.runPythTriples1 n
+  , C.bench "af-2" $ C.nf Af.runPythTriples2 n
+  , C.bench "mtl" $ C.nf MTL.runPythTriples n
+  , C.bench "pure" $ C.nf Pure.runPythTriples n
+  , C.bench "af-1" $ C.nf Af.runPythTriples1 n
+  , C.bench "af-2" $ C.nf Af.runPythTriples2 n
+  , C.bench "mtl" $ C.nf MTL.runPythTriples n
+  ]
+
+
 main :: IO ()
 main = C.defaultMain
   --[ countdownPut
   --[ countdownExc
   --[ readWriteNoError
+  --[ pythTriples
   [ countdownCountupExc
   , countdownPut
   , countdownExc
   , readWriteNoError
+  , pythTriples
   ]

@@ -6,6 +6,9 @@ module Control.Af
 
 import Control.Af.Af
   ( Af
+  , AfCont
+  , runAfCont
+  , runAfCont1
   , runAfPure
   , runAfHead
   )

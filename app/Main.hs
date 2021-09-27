@@ -92,8 +92,8 @@ data Nondet (efs :: [*]) (a :: *) =
 nondetHandler :: forall efs a. Handler Nondet efs [a]
 nondetHandler Empty _ = return []
 nondetHandler (Choose m1 m2) h = do
-  n1 <- h m1
-  n2 <- h m2
+  n1 <- runAfCont1 h m1
+  n2 <- runAfCont1 h m2
   return (n1 ++ n2)
 
 

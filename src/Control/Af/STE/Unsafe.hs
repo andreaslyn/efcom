@@ -15,7 +15,7 @@ module Control.Af.STE.Unsafe
 import Control.Af.Internal.Effect
 import Control.Af.Internal.AfArray
 import Control.Af.Internal.Af
-import Control.Af.Internal.I16Pair
+--import Control.Af.Internal.I16Pair
 import Control.Af.Internal.In
 import Control.Af.Internal.Util
 
@@ -37,15 +37,15 @@ runSTE af = runST (withSTE af)
 
 {-# INLINE unsafeCoerceBacktrack #-}
 unsafeCoerceBacktrack ::
-  forall dfs efs dfs' efs' a.
-  (Af dfs Any -> Af efs a) -> Af dfs' Any -> Af efs' a
+  forall dfs dfs' efs efs' a.
+  AfCont dfs Any efs a -> AfCont dfs' Any efs' a
 unsafeCoerceBacktrack = Unsafe.Coerce.unsafeCoerce
 
 
 data AfEnv s a =
     AfEnvError !(AfArray s) Any
   | AfEnvSuccess !(AfArray s) a
-  | forall dfs efs. AfEnvBacktrack !(AfArray s) (Af dfs Any -> Af efs a)
+  | forall dfs efs. AfEnvBacktrack !(AfArray s) (AfCont dfs Any efs a)
 
 
 instance Functor (AfEnv s) where
@@ -67,7 +67,7 @@ unsafeAfEnvSuccess ar a = AfEnvSuccess (unsafeCoerceAfArray ar) a
 {-# INLINE unsafeAfEnvBacktrack #-}
 unsafeAfEnvBacktrack ::
   forall s t dfs efs a.
-  AfArray s -> (Af dfs Any -> Af efs a) -> AfEnv t a
+  AfArray s -> AfCont dfs Any efs a -> AfEnv t a
 unsafeAfEnvBacktrack ar k =
   AfEnvBacktrack (unsafeCoerceAfArray ar) (unsafeCoerceBacktrack k)
 

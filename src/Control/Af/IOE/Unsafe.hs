@@ -60,15 +60,15 @@ unsafeAfEnvIOSuccess ar a = AfEnvIO (unsafeAfEnvSuccess ar a)
 {-# INLINE unsafeAfEnvIOBacktrack #-}
 unsafeAfEnvIOBacktrack ::
   forall s dfs efs a.
-  AfArray s -> (Af dfs Any -> Af efs a) -> AfEnvIO a
+  AfArray s -> AfCont dfs Any efs a -> AfEnvIO a
 unsafeAfEnvIOBacktrack ar k = AfEnvIO (unsafeAfEnvBacktrack ar k)
 
 
-type AfToIO es = forall a. Af es a -> IO (AfEnvIO a)
+type AfToIO efs = forall a. Af efs a -> IO (AfEnvIO a)
 
 
 {-# INLINE unsafeAfToIO #-}
-unsafeAfToIO :: forall es s. I16Pair -> AfArray s -> AfToIO es
+unsafeAfToIO :: forall efs s. I16Pair -> AfArray s -> AfToIO efs
 unsafeAfToIO sz ar = \ af -> GHC.IO $ \ s ->
   case unAf af sz ar (unsafeCoerceState s) of
     (# ar', s', (# a | #) #) ->
@@ -81,9 +81,9 @@ unsafeAfToIO sz ar = \ af -> GHC.IO $ \ s ->
 
 {-# INLINE unsafeTransIO #-}
 unsafeTransIO ::
-  forall es a b.
+  forall efs a b.
   (AfEnvIO () -> IO (AfEnvIO a) -> IO (AfEnvIO b)) ->
-  Af es a -> Af es b
+  Af efs a -> Af efs b
 unsafeTransIO f af = Af $ \ sz ar0 s0 ->
   case GHC.unIO (f (unsafeAfEnvIOSuccess ar0 ()) (unsafeAfToIO sz ar0 af)) (unsafeCoerceState s0) of
     (# s1, AfEnvIO (AfEnvSuccess ar1 a) #) ->
@@ -93,11 +93,11 @@ unsafeTransIO f af = Af $ \ sz ar0 s0 ->
     (# s1, AfEnvIO (AfEnvBacktrack ar1 k) #) ->
       (# unsafeCoerceAfArray ar1
        , unsafeCoerceState s1
-       , (# | (# | unsafeCoerceBacktrack (unsafeTransIO f . unsafeCoerce k) #) #) #)
+       , (# | (# | AfContScope (unsafeTransIO f) (unsafeCoerce k) #) #) #)
 
 
 {-# INLINE unsafeLiftIO #-}
-unsafeLiftIO :: forall es a. IO a -> Af es a
+unsafeLiftIO :: forall efs a. IO a -> Af efs a
 unsafeLiftIO io = Af $ \ _ ar s0 ->
   let !(# s1, a #) = GHC.unIO io (unsafeCoerceState s0)
   in (# ar, unsafeCoerceState s1, (# a | #) #)
@@ -108,12 +108,12 @@ unsafeLiftIO io = Af $ \ _ ar s0 ->
 -- IT IS SAFE FOR PURE/ALGEBRAIC/REENTRANT FUNCTIONS, SUCH AS try.
 {-# INLINE transIO #-}
 transIO ::
-  forall es a b. In IOE es =>
+  forall efs a b. In IOE efs =>
   (AfEnvIO () -> IO (AfEnvIO a) -> IO (AfEnvIO b)) ->
-  Af es a -> Af es b
+  Af efs a -> Af efs b
 transIO = unsafeTransIO
 
 
-instance In IOE es => MonadIO (Af es) where
+instance In IOE efs => MonadIO (Af efs) where
   {-# INLINE liftIO #-}
   liftIO = unsafeLiftIO

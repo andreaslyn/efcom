@@ -154,10 +154,14 @@ benchmark atl-bench
   main-is: Main.hs
   other-modules:
       Af.Countdown
+      Af.Pyth1
+      Af.Pyth2
       Af.ReadWriteNoError
       MTL.Countdown
+      MTL.Pyth
       MTL.ReadWriteNoError
       Pure.Countdown
+      Pure.Pyth
       Paths_af
   hs-source-dirs:
       bench
