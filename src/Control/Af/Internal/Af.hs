@@ -60,7 +60,10 @@ fmapAf f af = Af $ \ sz ar s ->
       (# ar', s', (# | (# e | #) #) #)
     (# ar', s', (# | (# | k #) #) #) ->
       {-# SCC bindAf_AfContBind #-}
-      (# ar', s', (# | (# | AfContBind (inline return . f) k #) #) #)
+      (# ar', s', (# | (# | AfContBind bindMap k #) #) #)
+    where
+      bindMap :: a -> Af efs b
+      bindMap x = Af $ \ _ br t -> (# br, t, (# f x | #) #)
 
 
 instance Functor (Af efs) where
