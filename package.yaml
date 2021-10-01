@@ -75,6 +75,7 @@ benchmarks:
     - transformers
     - mtl
     - criterion
+    - CC-delcont
 
 default-extensions:
   - BangPatterns

@@ -9,10 +9,16 @@ import qualified Af.ReadWriteNoError as Af
 import qualified Af.Countdown as Af
 import qualified Af.Pyth1 as Af
 import qualified Af.Pyth2 as Af
+import qualified Af.CoRoutineSum as Af
 
 import qualified MTL.ReadWriteNoError as MTL
 import qualified MTL.Countdown as MTL
-import qualified MTL.Pyth as MTL
+import qualified MTL.Pyth1 as MTL
+import qualified MTL.Pyth2 as MTL
+import qualified MTL.CoRoutineSum as MTL
+
+
+import Debug.Trace (trace)
 
 
 readWriteNoError :: C.Benchmark
@@ -83,15 +89,31 @@ pythTriples =
   [ C.bench "pure" $ C.nf Pure.runPythTriples n
   , C.bench "af-1" $ C.nf Af.runPythTriples1 n
   , C.bench "af-2" $ C.nf Af.runPythTriples2 n
-  , C.bench "mtl" $ C.nf MTL.runPythTriples n
+  , C.bench "mtl-1" $ C.nf MTL.runPythTriples1 n
+  , C.bench "mtl-2" $ C.nf MTL.runPythTriples2 n
   , C.bench "pure" $ C.nf Pure.runPythTriples n
   , C.bench "af-1" $ C.nf Af.runPythTriples1 n
   , C.bench "af-2" $ C.nf Af.runPythTriples2 n
-  , C.bench "mtl" $ C.nf MTL.runPythTriples n
+  , C.bench "mtl01" $ C.nf MTL.runPythTriples1 n
+  , C.bench "mtl-2" $ C.nf MTL.runPythTriples2 n
   , C.bench "pure" $ C.nf Pure.runPythTriples n
   , C.bench "af-1" $ C.nf Af.runPythTriples1 n
   , C.bench "af-2" $ C.nf Af.runPythTriples2 n
-  , C.bench "mtl" $ C.nf MTL.runPythTriples n
+  , C.bench "mtl-1" $ C.nf MTL.runPythTriples1 n
+  , C.bench "mtl-2" $ C.nf MTL.runPythTriples2 n
+  ]
+
+
+coRoutineSum :: C.Benchmark
+coRoutineSum =
+  let n = 500 in
+  C.bgroup "CoRoutineSum"
+  [ C.bench "af" $ C.nf Af.runCoRoutineSum n
+  , C.bench "mtl" $ C.nf MTL.runCoRoutineSum n
+  , C.bench "af" $ C.nf Af.runCoRoutineSum n
+  , C.bench "mtl" $ C.nf MTL.runCoRoutineSum n
+  , C.bench "af" $ C.nf Af.runCoRoutineSum n
+  , C.bench "mtl" $ C.nf MTL.runCoRoutineSum n
   ]
 
 
@@ -101,9 +123,11 @@ main = C.defaultMain
   --[ countdownExc
   --[ readWriteNoError
   --[ pythTriples
+  --[ coRoutineSum
   [ countdownCountupExc
   , countdownPut
   , countdownExc
   , readWriteNoError
   , pythTriples
+  , coRoutineSum
   ]

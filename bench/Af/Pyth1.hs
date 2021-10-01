@@ -14,11 +14,6 @@ data ListE
 type instance Effect ListE = '[Handle ListOps]
 
 
-{-# INLINE runListE #-}
-runListE :: forall efs a. Af (ListE : efs) a -> Af efs [a]
-runListE m = runHandle (runAfHead m) return listHandler
-
-
 listHandler :: forall efs a. Handler ListOps efs [a]
 listHandler Empty _ = return []
 listHandler (Choose as) h = chooseAll as []
@@ -39,6 +34,11 @@ choose as = backtrackHandle @ListE (Choose as)
 {-# INLINE empty #-}
 empty :: forall efs a. In (Handle ListOps ListE) efs => Af efs a
 empty = backtrackHandle @ListE Empty
+
+
+{-# INLINE runListE #-}
+runListE :: forall efs a. Af (ListE : efs) a -> Af efs [a]
+runListE m = runHandle (runAfHead m) return listHandler
 
 
 {-# NOINLINE pythTriples #-}

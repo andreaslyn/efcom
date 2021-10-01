@@ -153,12 +153,15 @@ benchmark atl-bench
   type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:
+      Af.CoRoutineSum
       Af.Countdown
       Af.Pyth1
       Af.Pyth2
       Af.ReadWriteNoError
+      MTL.CoRoutineSum
       MTL.Countdown
-      MTL.Pyth
+      MTL.Pyth1
+      MTL.Pyth2
       MTL.ReadWriteNoError
       Pure.Countdown
       Pure.Pyth
@@ -187,7 +190,8 @@ benchmark atl-bench
       GeneralizedNewtypeDeriving
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2 -fdicts-strict -fplugin=Control.Af.Internal.Plugin
   build-depends:
-      af
+      CC-delcont
+    , af
     , af-plugin
     , base >=4.7 && <5
     , criterion

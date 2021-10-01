@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module MTL.Pyth
-  ( runPythTriples
+module MTL.Pyth1
+  ( runPythTriples1
   ) where
 
 import Control.Monad.Trans.Cont
@@ -19,6 +19,7 @@ choose [] = empty
 choose (x : xs) = return x <|> choose xs
 
 
+{-# NOINLINE pythTriples #-}
 pythTriples :: [Integer] -> Cont [r] (Integer, Integer, Integer)
 pythTriples ns = do
   x <- choose ns
@@ -29,5 +30,6 @@ pythTriples ns = do
   else empty
 
 
-runPythTriples :: Integer -> [(Integer, Integer, Integer)]
-runPythTriples n = runCont (pythTriples [1..n]) return
+{-# NOINLINE runPythTriples1 #-}
+runPythTriples1 :: Integer -> [(Integer, Integer, Integer)]
+runPythTriples1 n = runCont (pythTriples [1..n]) return
