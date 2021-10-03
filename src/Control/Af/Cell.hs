@@ -29,16 +29,16 @@ doRunCell' ::
                            -- cell state of the effect computation.
   Af (Cell ce ref : efs) a -> -- Effect computation to execute.
   Af efs b
-doRunCell' ce k = \ af -> Af $ \ sz ar0 s0 ->
+doRunCell' ce k = \ af -> Af $ \ s0 sz ar0 ->
   case appendAfArray sz ar0 ce s0 of
     (# ar1, s1, sz' #) ->
-      let !(# ar2, s2, r #) = unAf af sz' ar1 s1
+      let !(# ar2, s2, r #) = unAf af s1 sz' ar1
           i = fstI16Pair sz
           !(# s3, ce' #) = readAfArray ar2 i s2
           s4 = writeAfArray ar2 i undefinedElementAfArray s3
       in case r of
           (# a | #) ->
-            unAf (k a ce') sz ar2 s4
+            unAf (k a ce') s4 sz ar2
           (# | (# e | #) #) ->
             (# ar2, s4, (# | (# e | #) #) #)
           (# | (# | kf #) #) ->
@@ -64,10 +64,10 @@ runCell ::
   (a -> ce -> Af efs b) -> -- Action called with result and final
                            -- cell state of the effect computation.
   Af efs b
-runCell af ce k = Af $ \ sz ar s ->
+runCell af ce k = Af $ \ s sz ar ->
   case isMaxI16PairValue (fstI16Pair sz) of
     1# -> error "exceeded maximal number of cell effects"
-    _ -> unAf (doRunCell af ce k) sz ar s
+    _ -> unAf (doRunCell af ce k) s sz ar
 
 
 {-# INLINABLE delimitCell' #-}
@@ -90,16 +90,16 @@ delimitCell' ::
                            -- escapes do not cause this, only internal.
   Af efs a -> -- Effectful computation to execute.
   Af efs b
-delimitCell' ce k g = \ af -> Af $ \ sz ar0 s0 ->
+delimitCell' ce k g = \ af -> Af $ \ s0 sz ar0 ->
   let di = cellIndexEscapeDepth @(Cell ce ref) @efs sz
       !(# s1, orig #) = readAfArray ar0 (cellIndex di) s0
       s2 = writeAfArray ar0 (cellIndex di) ce s1
-      !(# ar1, s3, r #) = unAf af sz ar0 s2
+      !(# ar1, s3, r #) = unAf af s2 sz ar0
       !(# s4, ce' #) = readAfArray ar1 (cellIndex di) s3 in
   case r of
     (# a | #) ->
       let s5 = writeAfArray ar1 (cellIndex di) orig s4
-      in unAf (k a ce') sz ar1 s5
+      in unAf (k a ce') s5 sz ar1
     (# | d #) ->
      let !(# s5, c #) = readAfArray @Int ar1 0# s4 in
      let s6 = case unI# c GHC.<=# escapeDepth di of
@@ -149,16 +149,16 @@ localCell' ::
                            -- is restored to that before localCell.
   Af efs a -> -- Effectful computation to execute.
   Af efs b
-localCell' ce k = \ af -> Af $ \ sz ar0 s0 ->
+localCell' ce k = \ af -> Af $ \ s0 sz ar0 ->
   let di = cellIndexEscapeDepth @(Cell ce ref) @efs sz
       !(# s1, orig #) = readAfArray ar0 (cellIndex di) s0
       s2 = writeAfArray ar0 (cellIndex di) ce s1
-      !(# ar1, s3, r #) = unAf af sz ar0 s2
+      !(# ar1, s3, r #) = unAf af s2 sz ar0
       !(# s4, ce' #) = readAfArray ar1 (cellIndex di) s3
       s5 = writeAfArray ar1 (cellIndex di) orig s4 in
   case r of
     (# a | #) ->
-      unAf (k a ce') sz ar1 s5
+      unAf (k a ce') s5 sz ar1
     (# | (# e | #) #) ->
       (# ar1, s5, (# | (# e | #) #) #)
     (# | (# | kf #) #) ->
@@ -182,21 +182,21 @@ localCell af ce k = inline (localCell' @ref ce k) af
 
 {-# INLINE lazyWriteCell #-}
 lazyWriteCell :: forall ref ce efs. In (Cell ce ref) efs => ce -> Af efs ()
-lazyWriteCell ce = Af $ \ sz ar s ->
+lazyWriteCell ce = Af $ \ s sz ar ->
   let di = cellIndexEscapeDepth @(Cell ce ref) @efs sz
   in (# ar, writeAfArray ar (cellIndex di) ce s, (# () | #) #)
 
 
 {-# INLINE writeCell #-}
 writeCell :: forall ref ce efs. In (Cell ce ref) efs => ce -> Af efs ()
-writeCell ce = Af $ \ sz ar s ->
+writeCell ce = Af $ \ s sz ar ->
   let di = cellIndexEscapeDepth @(Cell ce ref) @efs sz
   in (# ar, strictWriteAfArray ar (cellIndex di) ce s, (# () | #) #)
 
 
 {-# INLINE readCell #-}
 readCell :: forall ref ce efs. In (Cell ce ref) efs => Af efs ce
-readCell = Af $ \ sz ar s ->
+readCell = Af $ \ s sz ar ->
   let di = cellIndexEscapeDepth @(Cell ce ref) @efs sz
   in case readAfArray ar (cellIndex di) s of
       (# s', ce #) -> (# ar, s', (# ce | #) #)

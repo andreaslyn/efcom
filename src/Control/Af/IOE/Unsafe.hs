@@ -70,7 +70,7 @@ type AfToIO efs = forall a. Af efs a -> IO (AfEnvIO a)
 {-# INLINE unsafeAfToIO #-}
 unsafeAfToIO :: forall efs s. I16Pair -> AfArray s -> AfToIO efs
 unsafeAfToIO sz ar = \ af -> GHC.IO $ \ s ->
-  case unAf af sz ar (unsafeCoerceState s) of
+  case unAf af (unsafeCoerceState s) sz ar of
     (# ar', s', (# a | #) #) ->
       (# unsafeCoerceState s', unsafeAfEnvIOSuccess ar' a #)
     (# ar', s', (# | (# e | #) #) #) ->
@@ -84,7 +84,7 @@ unsafeTransIO ::
   forall efs a b.
   (AfEnvIO () -> IO (AfEnvIO a) -> IO (AfEnvIO b)) ->
   Af efs a -> Af efs b
-unsafeTransIO f af = Af $ \ sz ar0 s0 ->
+unsafeTransIO f af = Af $ \ s0 sz ar0 ->
   case GHC.unIO (f (unsafeAfEnvIOSuccess ar0 ()) (unsafeAfToIO sz ar0 af)) (unsafeCoerceState s0) of
     (# s1, AfEnvIO (AfEnvSuccess ar1 a) #) ->
       (# unsafeCoerceAfArray ar1, unsafeCoerceState s1, (# a | #) #)
@@ -98,7 +98,7 @@ unsafeTransIO f af = Af $ \ sz ar0 s0 ->
 
 {-# INLINE unsafeLiftIO #-}
 unsafeLiftIO :: forall efs a. IO a -> Af efs a
-unsafeLiftIO io = Af $ \ _ ar s0 ->
+unsafeLiftIO io = Af $ \ s0 _ ar ->
   let !(# s1, a #) = GHC.unIO io (unsafeCoerceState s0)
   in (# ar, unsafeCoerceState s1, (# a | #) #)
 

@@ -160,8 +160,10 @@ benchmark atl-bench
       Af.ReadWriteNoError
       MTL.CoRoutineSum
       MTL.Countdown
-      MTL.Pyth1
-      MTL.Pyth2
+      MTL.PythCC
+      MTL.PythContext
+      MTL.PythContT
+      MTL.PythNoPrompt
       MTL.ReadWriteNoError
       Pure.Countdown
       Pure.Pyth

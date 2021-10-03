@@ -13,12 +13,11 @@ import qualified Af.CoRoutineSum as Af
 
 import qualified MTL.ReadWriteNoError as MTL
 import qualified MTL.Countdown as MTL
-import qualified MTL.Pyth1 as MTL
-import qualified MTL.Pyth2 as MTL
+import qualified MTL.PythContT as MTL
+import qualified MTL.PythCC as MTL
+import qualified MTL.PythNoPrompt as MTL
+import qualified MTL.PythContext as MTL
 import qualified MTL.CoRoutineSum as MTL
-
-
-import Debug.Trace (trace)
 
 
 readWriteNoError :: C.Benchmark
@@ -89,18 +88,24 @@ pythTriples =
   [ C.bench "pure" $ C.nf Pure.runPythTriples n
   , C.bench "af-1" $ C.nf Af.runPythTriples1 n
   , C.bench "af-2" $ C.nf Af.runPythTriples2 n
-  , C.bench "mtl-1" $ C.nf MTL.runPythTriples1 n
-  , C.bench "mtl-2" $ C.nf MTL.runPythTriples2 n
+  , C.bench "mtl-ContT" $ C.nf MTL.runPythTriplesContT n
+  , C.bench "mtl-CC" $ C.nf MTL.runPythTriplesCC n
+  , C.bench "mtl-NoPrompt" $ C.nf MTL.runPythTriplesNoPrompt n
+  , C.bench "mtl-Context" $ C.nf MTL.runPythTriplesContext n
   , C.bench "pure" $ C.nf Pure.runPythTriples n
   , C.bench "af-1" $ C.nf Af.runPythTriples1 n
   , C.bench "af-2" $ C.nf Af.runPythTriples2 n
-  , C.bench "mtl01" $ C.nf MTL.runPythTriples1 n
-  , C.bench "mtl-2" $ C.nf MTL.runPythTriples2 n
+  , C.bench "mtl-ContT" $ C.nf MTL.runPythTriplesContT n
+  , C.bench "mtl-CC" $ C.nf MTL.runPythTriplesCC n
+  , C.bench "mtl-NoPrompt" $ C.nf MTL.runPythTriplesNoPrompt n
+  , C.bench "mtl-Context" $ C.nf MTL.runPythTriplesContext n
   , C.bench "pure" $ C.nf Pure.runPythTriples n
   , C.bench "af-1" $ C.nf Af.runPythTriples1 n
   , C.bench "af-2" $ C.nf Af.runPythTriples2 n
-  , C.bench "mtl-1" $ C.nf MTL.runPythTriples1 n
-  , C.bench "mtl-2" $ C.nf MTL.runPythTriples2 n
+  , C.bench "mtl-ContT" $ C.nf MTL.runPythTriplesContT n
+  , C.bench "mtl-CC" $ C.nf MTL.runPythTriplesCC n
+  , C.bench "mtl-NoPrompt" $ C.nf MTL.runPythTriplesNoPrompt n
+  , C.bench "mtl-Context" $ C.nf MTL.runPythTriplesContext n
   ]
 
 

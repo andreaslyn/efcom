@@ -3,7 +3,6 @@ module MTL.CoRoutineSum
   ) where
 
 import Control.Monad.Trans.Cont
-import Data.Functor.Identity
 
 
 data LazyList x y a = LNil a | LCons y (x -> LazyList x y a)

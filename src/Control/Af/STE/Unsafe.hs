@@ -82,7 +82,7 @@ type AfToST st es = forall a. Af es a -> ST st (AfEnv st a)
 
 {-# INLINE liftST #-}
 liftST :: forall st es a. In (STE st) es => ST st a -> Af es a
-liftST st = Af $ \ _ ar s0 ->
+liftST st = Af $ \ s0 _ ar ->
   let !(# s1, a #) = unST st (unsafeCoerceState s0)
   in (# ar, unsafeCoerceState s1, (# a | #) #)
 
