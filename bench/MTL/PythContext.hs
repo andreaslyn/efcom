@@ -126,11 +126,21 @@ pythTriples pt ns = do
   else empty pt
 
 
+concatAcc :: forall a. [a] -> [[a]] -> [a]
+concatAcc acc [] = acc
+concatAcc acc (as : ass) = concatAcc (as ++ acc) ass
+
+
+{-# INLINE concatR #-}
+concatR :: forall a. [[a]] -> [a]
+concatR = concatAcc []
+
+
 handler :: Handler ListOps [r]
 handler Empty _ = return []
 handler (Choose as) k = chooseAll as []
   where
-    chooseAll [] acc = return $! foldr (flip (++)) [] acc
+    chooseAll [] acc = return $! concatR acc
     chooseAll (a : as') acc = do
       !a' <- contMap k a
       chooseAll as' $! a' : acc

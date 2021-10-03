@@ -15,11 +15,21 @@ data ListE
 type instance Effect ListE = '[Handle Choose, Escape ()]
 
 
+concatAcc :: forall a. [a] -> [[a]] -> [a]
+concatAcc acc [] = acc
+concatAcc acc (as : ass) = concatAcc (as ++ acc) ass
+
+
+{-# INLINE concatR #-}
+concatR :: forall a. [[a]] -> [a]
+concatR = concatAcc []
+
+
 chooseListHandler ::
   forall efs a. In (Escape () ListE) efs => Handler Choose efs [a]
 chooseListHandler (Choose ms) h = chooseAll ms []
   where
-    chooseAll [] acc = return $! foldr (flip (++)) [] acc
+    chooseAll [] acc = return $! concatR acc
     chooseAll (a : as) acc = do
       a' <- catchEscape @ListE @() (runAfCont h a) (\ _ -> return [])
       chooseAll as $! a' : acc

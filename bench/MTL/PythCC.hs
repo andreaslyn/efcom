@@ -5,6 +5,16 @@ module MTL.PythCC
 import Control.Monad.CC
 
 
+concatAcc :: forall a. [a] -> [[a]] -> [a]
+concatAcc acc [] = acc
+concatAcc acc (as : ass) = concatAcc (as ++ acc) ass
+
+
+{-# INLINE concatR #-}
+concatR :: forall a. [[a]] -> [a]
+concatR = concatAcc []
+
+
 {-# INLINE empty #-}
 empty :: Prompt r [a] -> CC r b
 empty pt = shift pt $ \ _ -> return []
@@ -18,7 +28,7 @@ choose :: Prompt r [a] -> [b] -> CC r b
 choose pt as = shift pt (chooseAll as [])
   where
     chooseAll :: [b] -> [[a]] -> (CC r b -> CC r [a]) -> CC r [a]
-    chooseAll [] acc = \ _ -> return $! foldr (flip (++)) [] acc
+    chooseAll [] acc = \ _ -> return $! concatR acc
     chooseAll (a : as') acc = \ k -> do
       a' <- k (return a)
       (chooseAll as' $! a' : acc) k

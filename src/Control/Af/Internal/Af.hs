@@ -140,3 +140,12 @@ runAfPure af = case GHC.runRW# (runAf# af) of (# _, a #) -> a
 {-# INLINE runAfHead #-}
 runAfHead :: forall e efs a. Af (e : efs) a -> Af (Effects e ++ efs) a
 runAfHead = unsafeCoerce
+
+
+-- This is probably not a good idea.
+-- Using this inside a handler and applying continuation
+-- can cause effect overflow if the continuation invokes handler
+-- recursively.
+{-# INLINE _liftAf #-}
+_liftAf :: forall e efs a. Af efs a -> Af (e : efs) a
+_liftAf = unsafeCoerce

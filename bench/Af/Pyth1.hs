@@ -5,6 +5,7 @@ module Af.Pyth1
 
 import Control.Af
 import Control.Af.Handle
+import Control.Af.State
 
 
 data ListOps (efs :: [*]) (a :: *) = Empty | Choose ![a]
@@ -14,14 +15,24 @@ data ListE
 type instance Effect ListE = '[Handle ListOps]
 
 
+concatAcc :: forall a. [a] -> [[a]] -> [a]
+concatAcc acc [] = acc
+concatAcc acc (as : ass) = concatAcc (as ++ acc) ass
+
+
+{-# INLINE concatR #-}
+concatR :: forall a. [[a]] -> [a]
+concatR = concatAcc []
+
+
 listHandler :: forall efs a. Handler ListOps efs [a]
 listHandler Empty _ = return []
-listHandler (Choose as) h = chooseAll as []
+listHandler (Choose choices) h = chooseAll choices []
   where
-    chooseAll [] acc = return $! foldr (flip (++)) [] acc
-    chooseAll (a : as') acc = do
+    chooseAll [] acc = return $! concatR acc
+    chooseAll (a : as) acc = do
       a' <- runAfCont h a
-      chooseAll as' $! a' : acc
+      chooseAll as $! a' : acc
 
 
 {-# INLINE choose #-}
