@@ -21,10 +21,10 @@ import Unsafe.Coerce (unsafeCoerce)
 data AfCont :: [*] -> * -> [*] -> * -> * where
   AfContBind ::
     forall dfs efs a b c. (b -> Af efs c) -> AfCont dfs a efs b -> AfCont dfs a efs c
-  AfContScope ::
-    forall cfs dfs efs a b c. (Af dfs b -> Af efs c) -> AfCont cfs a dfs b -> AfCont cfs a efs c
   AfContFmap ::
     forall dfs efs a b c. (b -> c) -> AfCont dfs a efs b -> AfCont dfs a efs c
+  AfContScope ::
+    forall cfs dfs efs a b c. (Af dfs b -> Af efs c) -> AfCont cfs a dfs b -> AfCont cfs a efs c
   AfContNil :: forall efs a. AfCont efs a efs a
 
 

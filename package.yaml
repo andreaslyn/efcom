@@ -60,7 +60,7 @@ tests:
     - hspec
 
 benchmarks:
-  atl-bench:
+  af-bench:
     main: Main.hs
     source-dirs: bench
     ghc-options:

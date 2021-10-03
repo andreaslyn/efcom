@@ -24,12 +24,10 @@ coRoutineSum ::
 coRoutineSum next final
   | next > final = return ()
   | otherwise = do
-      count next
+      coyield next
+      coyield next
+      coyield next
       coRoutineSum (next + 1) final
-  where
-    count :: Integer -> Cont (LazyList () Integer ()) ()
-    count 0 = return ()
-    count i = coyield 1 >> count (i-1)
 
 
 {-# INLINE sumLazyList #-}

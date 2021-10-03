@@ -43,9 +43,9 @@ unsafeCoerceBacktrack = Unsafe.Coerce.unsafeCoerce
 
 
 data AfEnv s a =
-    AfEnvError !(AfArray s) Any
-  | AfEnvSuccess !(AfArray s) a
-  | forall dfs efs. AfEnvBacktrack !(AfArray s) (AfCont dfs Any efs a)
+    AfEnvError (AfArray s) Any
+  | AfEnvSuccess (AfArray s) a
+  | forall dfs efs. AfEnvBacktrack (AfArray s) (AfCont dfs Any efs a)
 
 
 instance Functor (AfEnv s) where
