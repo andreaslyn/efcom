@@ -46,10 +46,12 @@ coRoutineSum next final
 
 {-# INLINE sumLazyList #-}
 sumLazyList :: Af '[] (LazyList () Integer '[] ()) -> Integer
-sumLazyList af =
-  case runAfPure af of
-    LNil _ -> 0
-    LCons x af' -> x + sumLazyList (af' ())
+sumLazyList = sum 0
+  where
+    sum acc af =
+      case runAfPure af of
+        LNil _ -> acc
+        LCons x af' -> (sum $! x + acc) (af' ())
 
 
 {-# NOINLINE runCoRoutineSum #-}

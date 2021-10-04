@@ -32,8 +32,10 @@ coRoutineSum next final
 
 {-# INLINE sumLazyList #-}
 sumLazyList :: LazyList () Integer () -> Integer
-sumLazyList (LNil _) = 0
-sumLazyList (LCons x xs) = x + sumLazyList (xs ())
+sumLazyList = sum 0
+  where
+    sum acc (LNil _) = acc
+    sum acc (LCons x xs) = sum (x + acc) (xs ())
 
 
 {-# NOINLINE runCoRoutineSum #-}
