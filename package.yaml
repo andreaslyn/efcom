@@ -1,10 +1,10 @@
-name:                af
+name:                efcom
 version:             0.1.0.0
-github:              "githubuser/af"
-license:             BSD3
-author:              "Author name here"
-maintainer:          "example@example.com"
-copyright:           "2021 Author name here"
+github:              "githubuser/efcom"
+license:             MIT
+author:              "Andreas Lynge"
+maintainer:          "andreaslyn@gmail.com"
+copyright:           "2021 Andreas Lynge"
 
 extra-source-files:
 - README.md
@@ -17,21 +17,21 @@ extra-source-files:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/githubuser/af#readme>
+description:         Please see the README on GitHub at <https://github.com/githubuser/efcom#readme>
 
 dependencies:
 - base >= 4.7 && < 5
-- af-plugin
+- efcom-plugin
 
 library:
   source-dirs: src
   ghc-options:
   - -O2
   - -fdicts-strict
-  - -fplugin=Control.Af.Internal.Plugin
+  - -fplugin=Control.Efcom.Internal.Plugin
 
 executables:
-  af-exe:
+  efcom-exe:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
@@ -40,12 +40,12 @@ executables:
     - -with-rtsopts=-N
     - -O2
     - -fdicts-strict
-    - -fplugin=Control.Af.Internal.Plugin
+    - -fplugin=Control.Efcom.Internal.Plugin
     dependencies:
-    - af
+    - efcom
 
 tests:
-  af-test:
+  efcom-test:
     main:                Main.hs
     source-dirs:         test
     ghc-options:
@@ -54,13 +54,13 @@ tests:
     - -with-rtsopts=-N
     - -O2
     - -fdicts-strict
-    - -fplugin=Control.Af.Internal.Plugin
+    - -fplugin=Control.Efcom.Internal.Plugin
     dependencies:
-    - af
+    - efcom
     - hspec
 
 benchmarks:
-  af-bench:
+  efcom-bench:
     main: Main.hs
     source-dirs: bench
     ghc-options:
@@ -69,9 +69,9 @@ benchmarks:
     - -with-rtsopts=-N
     - -O2
     - -fdicts-strict
-    - -fplugin=Control.Af.Internal.Plugin
+    - -fplugin=Control.Efcom.Internal.Plugin
     dependencies:
-    - af
+    - efcom
     - transformers
     - mtl
     - criterion

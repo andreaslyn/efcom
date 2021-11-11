@@ -1,0 +1,202 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.34.4.
+--
+-- see: https://github.com/sol/hpack
+
+name:           efcom
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/githubuser/efcom#readme>
+homepage:       https://github.com/githubuser/efcom#readme
+bug-reports:    https://github.com/githubuser/efcom/issues
+author:         Andreas Lynge
+maintainer:     andreaslyn@gmail.com
+copyright:      2021 Andreas Lynge
+license:        MIT
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/githubuser/efcom
+
+library
+  exposed-modules:
+      Control.Efcom
+      Control.Efcom.Cell
+      Control.Efcom.Com
+      Control.Efcom.Effect
+      Control.Efcom.Error
+      Control.Efcom.ErrorH
+      Control.Efcom.Escape
+      Control.Efcom.Handle
+      Control.Efcom.In
+      Control.Efcom.Internal.Com
+      Control.Efcom.Internal.ComArray
+      Control.Efcom.Internal.Effect
+      Control.Efcom.Internal.I16Pair
+      Control.Efcom.Internal.In
+      Control.Efcom.Internal.Util
+      Control.Efcom.IOE
+      Control.Efcom.IOE.Unsafe
+      Control.Efcom.Reader
+      Control.Efcom.State
+      Control.Efcom.STE
+      Control.Efcom.STE.Unsafe
+      Control.Efcom.Writer
+  other-modules:
+      Paths_efcom
+  hs-source-dirs:
+      src
+  default-extensions:
+      BangPatterns
+      GADTs
+      TypeFamilies
+      ScopedTypeVariables
+      ConstraintKinds
+      DataKinds
+      TypeApplications
+      TypeOperators
+      RankNTypes
+      KindSignatures
+      InstanceSigs
+      MultiParamTypeClasses
+      FlexibleInstances
+      FlexibleContexts
+      MagicHash
+      UnboxedTuples
+      UnboxedSums
+      UnliftedNewtypes
+      GeneralizedNewtypeDeriving
+  ghc-options: -O2 -fdicts-strict -fplugin=Control.Efcom.Internal.Plugin
+  build-depends:
+      base >=4.7 && <5
+    , efcom-plugin
+  default-language: Haskell2010
+
+executable efcom-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_efcom
+  hs-source-dirs:
+      app
+  default-extensions:
+      BangPatterns
+      GADTs
+      TypeFamilies
+      ScopedTypeVariables
+      ConstraintKinds
+      DataKinds
+      TypeApplications
+      TypeOperators
+      RankNTypes
+      KindSignatures
+      InstanceSigs
+      MultiParamTypeClasses
+      FlexibleInstances
+      FlexibleContexts
+      MagicHash
+      UnboxedTuples
+      UnboxedSums
+      UnliftedNewtypes
+      GeneralizedNewtypeDeriving
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2 -fdicts-strict -fplugin=Control.Efcom.Internal.Plugin
+  build-depends:
+      base >=4.7 && <5
+    , efcom
+    , efcom-plugin
+  default-language: Haskell2010
+
+test-suite efcom-test
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  other-modules:
+      CellTest.Test
+      CellTest.Util
+      EscapeTest.Test
+      EscapeTest.Util
+      Paths_efcom
+  hs-source-dirs:
+      test
+  default-extensions:
+      BangPatterns
+      GADTs
+      TypeFamilies
+      ScopedTypeVariables
+      ConstraintKinds
+      DataKinds
+      TypeApplications
+      TypeOperators
+      RankNTypes
+      KindSignatures
+      InstanceSigs
+      MultiParamTypeClasses
+      FlexibleInstances
+      FlexibleContexts
+      MagicHash
+      UnboxedTuples
+      UnboxedSums
+      UnliftedNewtypes
+      GeneralizedNewtypeDeriving
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2 -fdicts-strict -fplugin=Control.Efcom.Internal.Plugin
+  build-depends:
+      base >=4.7 && <5
+    , efcom
+    , efcom-plugin
+    , hspec
+  default-language: Haskell2010
+
+benchmark efcom-bench
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  other-modules:
+      Efcom.CoRoutineSum
+      Efcom.Countdown
+      Efcom.Pyth1
+      Efcom.Pyth2
+      Efcom.ReadWriteNoError
+      MTL.CoRoutineSum
+      MTL.Countdown
+      MTL.PythCC
+      MTL.PythContext
+      MTL.PythContT
+      MTL.PythNoPrompt
+      MTL.ReadWriteNoError
+      Pure.Countdown
+      Pure.Pyth
+      Paths_efcom
+  hs-source-dirs:
+      bench
+  default-extensions:
+      BangPatterns
+      GADTs
+      TypeFamilies
+      ScopedTypeVariables
+      ConstraintKinds
+      DataKinds
+      TypeApplications
+      TypeOperators
+      RankNTypes
+      KindSignatures
+      InstanceSigs
+      MultiParamTypeClasses
+      FlexibleInstances
+      FlexibleContexts
+      MagicHash
+      UnboxedTuples
+      UnboxedSums
+      UnliftedNewtypes
+      GeneralizedNewtypeDeriving
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2 -fdicts-strict -fplugin=Control.Efcom.Internal.Plugin
+  build-depends:
+      CC-delcont
+    , base >=4.7 && <5
+    , criterion
+    , efcom
+    , efcom-plugin
+    , mtl
+    , transformers
+  default-language: Haskell2010

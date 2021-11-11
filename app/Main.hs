@@ -1,12 +1,12 @@
 module Main where
 
-import Control.Af
-import Control.Af.Cell
-import Control.Af.Escape
-import Control.Af.STE
-import Control.Af.IOE
-import Control.Af.State
-import Control.Af.Handle
+import Control.Efcom
+import Control.Efcom.Cell
+import Control.Efcom.Escape
+import Control.Efcom.STE
+import Control.Efcom.IOE
+import Control.Efcom.State
+import Control.Efcom.Handle
 
 import Control.Exception (Exception, try, throwIO, AssertionFailed (..))
 
@@ -22,7 +22,7 @@ catchClause ::
   '[Cell Bool Composite
   , Cell Int (OtherState Composite)
   , Escape String ()] es =>
-  String -> Af es (Int, Int)
+  String -> Com es (Int, Int)
 catchClause _ = do
   !x <- readCell @(OtherState Composite)
   !y <- readCell @Composite
@@ -35,8 +35,8 @@ type instance Effect (OtherState i) = '[Cell Int]
 
 unOtherState ::
   forall i es a.
-  Af (OtherState i : es) a -> Af (Cell Int (OtherState i) : es) a
-unOtherState = runAfHead
+  Com (OtherState i : es) a -> Com (Cell Int (OtherState i) : es) a
+unOtherState = runComHead
 
 
 data Composite
@@ -45,15 +45,15 @@ type instance Effect Composite = '[Cell Bool, OtherState]
 
 unComposite ::
   forall es a.
-  Af (Composite : es) a -> Af (Cell Bool Composite : OtherState Composite : es) a
-unComposite = runAfHead
+  Com (Composite : es) a -> Com (Cell Bool Composite : OtherState Composite : es) a
+unComposite = runComHead
 
 
 {-# NOINLINE testLoop #-}
 testLoop ::
   forall st es.
   AllIn '[Composite, Escape String (), STE st] es =>
-  STRef st Int -> Int -> Af es (Int, Int)
+  STRef st Int -> Int -> Com es (Int, Int)
 testLoop r 0 = do
   x <- readCell @(OtherState Composite) @Int
   y <- readCell @Composite
@@ -74,7 +74,7 @@ testLoop r i = do
 
 
 loopWithST ::
-  forall st. Af '[Escape String (), STE st, IOE] (((Int, Int), Bool), Int)
+  forall st. Com '[Escape String (), STE st, IOE] (((Int, Int), Bool), Int)
 loopWithST = do
   r <- liftST @st (newSTRef (0 :: Int))
   (runCell @(OtherState Composite)
@@ -86,14 +86,14 @@ loopWithST = do
 
 
 data Nondet (efs :: [*]) (a :: *) =
-  Empty | Choose (Af efs a) (Af efs a)
+  Empty | Choose (Com efs a) (Com efs a)
 
 
 nondetHandler :: forall efs a. Handler Nondet efs [a]
 nondetHandler Empty _ = return []
 nondetHandler (Choose m1 m2) h = do
-  n1 <- runAfCont1 h m1
-  n2 <- runAfCont1 h m2
+  n1 <- runComCont1 h m1
+  n2 <- runComCont1 h m2
   return (n1 ++ n2)
 
 
@@ -101,7 +101,7 @@ mytry ::
   forall e efs a.
   Exception e =>
   In IOE efs =>
-  Af efs a -> Af efs (Either e a)
+  Com efs a -> Com efs (Either e a)
 mytry =
   transIO $ \ un io -> do
     x <- try @e io
@@ -115,7 +115,7 @@ testNondet ::
   In (State Int) efs =>
   In (State Bool) efs =>
   In IOE efs =>
-  Af efs (Int, Int, Int)
+  Com efs (Int, Int, Int)
 testNondet = do
   b1 <- get @Bool
   x0 <- mytry @AssertionFailed (liftIO (putStrLn "hello") >> backtrackHandle @() (Choose (put @Bool (not b1) >> get @Int >> liftIO (throwIO (AssertionFailed "failed"))) (put @Int 1 >> fmap (1+) (get @Int))))
@@ -139,7 +139,7 @@ contFailHandler ContFail _ = return Nothing
 contStateCatchInternalError ::
   forall efs.
   AllIn '[Cell Int (), Handle ContFail ()] efs =>
-  Af efs Int
+  Com efs Int
 contStateCatchInternalError = do
   writeCell @() (1 :: Int)
   m <- delimitHandle @() (do
@@ -153,12 +153,12 @@ contStateCatchInternalError = do
 
 main :: IO ()
 main = do
-  print $ runAfPure $
+  print $ runComPure $
     runCell @() @Int
           (runHandle @() @ContFail contStateCatchInternalError
             Just contFailHandler)
        0 (\ a s -> return (a, s))
-  print $ runAfPure $
+  print $ runComPure $
     runHandle @() @ContFail
           (runCell @() @Int contStateCatchInternalError
               0 (\ a s -> return (a, s)))
@@ -169,7 +169,7 @@ main = do
   print x
 -}
 {-
-  print $ pureAf $
+  print $ pureCom $
     (runEscape @() @String
       (runCell @(OtherState Composite)
         (runCell @Composite
