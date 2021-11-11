@@ -111,7 +111,7 @@ pythTriples =
 
 coRoutineSum :: C.Benchmark
 coRoutineSum =
-  let n = 500 in
+  let n = 200000 in
   C.bgroup "CoRoutineSum"
   [ C.bench "efcom" $ C.nf Efcom.runCoRoutineSum n
   , C.bench "mtl" $ C.nf MTL.runCoRoutineSum n
